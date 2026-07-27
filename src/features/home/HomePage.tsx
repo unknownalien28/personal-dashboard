@@ -1,5 +1,6 @@
 import { WelcomeHeader } from "./components/WelcomeHeader";
 import { QuickStats } from "./components/QuickStats";
+import { NotesSummary } from "./components/NotesSummary";
 import { DailyQuote } from "./components/DailyQuote";
 import { WeatherWidget } from "./components/WeatherWidget";
 import { QuickActions } from "./components/QuickActions";
@@ -9,6 +10,7 @@ export function HomePage() {
     <div className="flex flex-col gap-6">
       <WelcomeHeader />
       <QuickStats />
+      <NotesSummary />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <DailyQuote />
         <WeatherWidget />

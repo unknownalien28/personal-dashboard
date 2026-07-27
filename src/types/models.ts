@@ -10,12 +10,17 @@ export interface Task {
   createdAt: string;
 }
 
+export type NoteColor = "default" | "yellow" | "blue" | "green" | "pink" | "purple";
+
 export interface Note {
   id: string;
   title: string;
-  content: string; // HTML from the rich text editor
+  content: string; // Markdown source
   tags: string[];
   pinned: boolean;
+  archived: boolean;
+  deletedAt: string | null; // ISO timestamp when moved to trash, null if active
+  color: NoteColor;
   createdAt: string;
   updatedAt: string;
 }
