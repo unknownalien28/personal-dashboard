@@ -1,0 +1,62 @@
+import { NavLink } from "react-router-dom";
+import { ChevronsLeft, ChevronsRight, Sparkles } from "lucide-react";
+import { navItems } from "@/lib/nav-items";
+import { cn } from "@/lib/utils/cn";
+
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  return (
+    <aside
+      className={cn(
+        "hidden md:flex flex-col shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)]",
+        "transition-[width] duration-200 ease-out",
+        collapsed ? "w-[68px]" : "w-60"
+      )}
+    >
+      <div className="flex items-center h-14 px-4 gap-2 border-b border-[var(--color-border)]">
+        <div className="h-7 w-7 shrink-0 rounded-lg bg-accent-500 flex items-center justify-center">
+          <Sparkles className="h-4 w-4 text-white" />
+        </div>
+        {!collapsed && (
+          <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+            Dashboard
+          </span>
+        )}
+      </div>
+
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === "/"}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 rounded-lg px-2.5 h-9 text-sm font-medium transition-colors duration-150",
+                isActive
+                  ? "bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-400"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              )
+            }
+            title={collapsed ? item.label : undefined}
+          >
+            <item.icon className="h-[18px] w-[18px] shrink-0" />
+            {!collapsed && <span className="truncate">{item.label}</span>}
+          </NavLink>
+        ))}
+      </nav>
+
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 h-11 px-4 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-t border-[var(--color-border)]"
+      >
+        {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+        {!collapsed && <span>Collapse</span>}
+      </button>
+    </aside>
+  );
+}
