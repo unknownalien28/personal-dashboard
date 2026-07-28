@@ -25,13 +25,27 @@ export interface Note {
   updatedAt: string;
 }
 
+export type EventColor = "default" | "yellow" | "blue" | "green" | "pink" | "purple";
+export type RepeatOption = "none" | "daily" | "weekly" | "monthly" | "yearly";
+export type ReminderOption = "none" | "atTime" | "5min" | "15min" | "30min" | "1hour" | "1day";
+
 export interface CalendarEvent {
   id: string;
   title: string;
-  date: string; // ISO date string
-  time: string | null; // "HH:mm" or null for all-day
-  type: "event" | "reminder" | "deadline";
-  notes: string;
+  description: string;
+  startDate: string; // ISO date "YYYY-MM-DD"
+  endDate: string; // ISO date "YYYY-MM-DD" — equals startDate for single-day events
+  startTime: string | null; // "HH:mm", null when allDay
+  endTime: string | null; // "HH:mm", null when allDay
+  allDay: boolean;
+  color: EventColor;
+  category: string;
+  location: string;
+  reminder: ReminderOption;
+  repeat: RepeatOption;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Habit {
