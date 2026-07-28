@@ -108,3 +108,23 @@ html.dark body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Manually toggled from Settings > Appearance, in addition to the OS-level query above */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Compact mode tightens the most visible spacing: page padding and stacked-section gaps */
+html.compact main > div {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+html.compact .flex.flex-col.gap-6 {
+  gap: 1rem;
+}
+html.compact .flex.flex-col.gap-5 {
+  gap: 0.875rem;
+}

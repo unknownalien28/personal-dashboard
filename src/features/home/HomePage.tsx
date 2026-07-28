@@ -1,5 +1,6 @@
 import { WelcomeHeader } from "./components/WelcomeHeader";
 import { QuickStats } from "./components/QuickStats";
+import { GoalsSummary } from "./components/GoalsSummary";
 import { CalendarSummary } from "./components/CalendarSummary";
 import { NotesSummary } from "./components/NotesSummary";
 import { DailyQuote } from "./components/DailyQuote";
@@ -12,13 +13,14 @@ export function HomePage() {
       <WelcomeHeader />
       <QuickStats />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <GoalsSummary />
         <CalendarSummary />
-        <NotesSummary />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <NotesSummary />
         <DailyQuote />
-        <WeatherWidget />
       </div>
+      <WeatherWidget />
       <QuickActions />
     </div>
   );

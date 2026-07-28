@@ -13,6 +13,11 @@ export const useProfileStore = create<ProfileState>()(
       name: "there",
       role: "",
       avatarColor: "#5e6ad2",
+      avatarDataUrl: null,
+      email: "",
+      bio: "",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
+      language: "en",
       updateProfile: (updates) => set(updates),
     }),
     {

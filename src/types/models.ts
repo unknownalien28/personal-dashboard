@@ -57,12 +57,33 @@ export interface Habit {
   createdAt: string;
 }
 
+export type GoalStatus = "notStarted" | "inProgress" | "completed" | "onHold";
+
+export interface Milestone {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+}
+
 export interface Goal {
   id: string;
   title: string;
+  description: string;
+  category: string;
+  priority: Priority;
   targetDate: string | null;
   progress: number; // 0-100
+  manualProgress: boolean; // true once the person overrides the milestone-derived progress
+  status: GoalStatus;
+  color: NoteColor;
+  icon: string; // key into the curated goal-icons list
+  notes: string;
+  milestones: Milestone[];
+  archived: boolean;
+  deletedAt: string | null; // ISO timestamp when moved to trash, null if active
   createdAt: string;
+  updatedAt: string;
 }
 
 export type TransactionType = "income" | "expense";
@@ -91,4 +112,36 @@ export interface Profile {
   name: string;
   role: string;
   avatarColor: string;
+  avatarDataUrl: string | null;
+  email: string;
+  bio: string;
+  timezone: string;
+  language: string;
+}
+
+export type AccentColorKey = "indigo" | "blue" | "green" | "rose" | "orange" | "violet";
+export type FontSize = "small" | "medium" | "large";
+export type StartupPage = "/" | "/tasks" | "/notes" | "/calendar" | "/goals";
+export type NotesDefaultFilter = "all" | "pinned" | "archived" | "trash";
+export type CalendarDefaultView = "month" | "week" | "day" | "agenda";
+export type GoalDefaultView = "grid" | "list" | "kanban";
+
+export interface AppearanceSettings {
+  accentColor: AccentColorKey;
+  fontSize: FontSize;
+  compactMode: boolean;
+  reducedMotion: boolean;
+}
+
+export interface NotificationSettings {
+  calendarReminders: boolean;
+  goalReminders: boolean;
+  taskReminders: boolean;
+}
+
+export interface PreferenceSettings {
+  defaultCalendarView: CalendarDefaultView;
+  defaultNotesFilter: NotesDefaultFilter;
+  defaultGoalView: GoalDefaultView;
+  startupPage: StartupPage;
 }

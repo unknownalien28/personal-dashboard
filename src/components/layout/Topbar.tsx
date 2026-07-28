@@ -3,10 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import { Search, Sun, Moon, Settings, X } from "lucide-react";
 import { navItems } from "@/lib/nav-items";
 import { useThemeStore } from "@/lib/theme-store";
+import { useResolvedDarkMode } from "@/hooks/useApplyTheme";
 
 export function Topbar() {
   const location = useLocation();
-  const mode = useThemeStore((s) => s.mode);
+  const isDark = useResolvedDarkMode();
   const toggle = useThemeStore((s) => s.toggle);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
@@ -71,7 +72,7 @@ export function Topbar() {
               aria-label="Toggle theme"
               className="h-11 w-11 md:h-9 md:w-9 flex items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:bg-zinc-200 dark:active:bg-zinc-700 transition-colors duration-150"
             >
-              {mode === "light" ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
+              {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
             </button>
 
             <Link

@@ -4,9 +4,11 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { MobileNav } from "./MobileNav";
 import { useApplyTheme } from "@/hooks/useApplyTheme";
+import { useApplyAppearance } from "@/hooks/useApplyAppearance";
 
 export function AppShell() {
   useApplyTheme();
+  useApplyAppearance();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
