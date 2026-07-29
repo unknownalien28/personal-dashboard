@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Plus, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useTasksStore } from "@/features/tasks/tasks-store";
 import { TaskItem } from "@/features/tasks/components/TaskItem";
 import { TaskForm, type TaskFormValues } from "@/features/tasks/components/TaskForm";
@@ -82,18 +83,12 @@ export function TasksPage() {
       )}
 
       {tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-20 gap-3 empty-state-in">
-          <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
-            <CheckSquare className="h-6 w-6 text-accent-500" />
-          </div>
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">No tasks yet</h3>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs">
-            Add your first task to start tracking what needs to get done.
-          </p>
-          <Button variant="primary" onClick={openCreateModal} className="mt-1">
-            <Plus className="h-4 w-4" /> Add a task
-          </Button>
-        </div>
+        <EmptyState
+          icon={CheckSquare}
+          title="No tasks yet"
+          description="Add your first task to start tracking what needs to get done."
+          action={{ label: "Add a task", onClick: openCreateModal, icon: Plus }}
+        />
       ) : visibleTasks.length === 0 ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-12">
           No tasks match these filters.

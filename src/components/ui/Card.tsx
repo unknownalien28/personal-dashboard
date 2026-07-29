@@ -6,7 +6,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
     <div
       className={cn(
         "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-card)]",
-        "shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover-lift",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover-lift card-glow",
         className
       )}
       {...props}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { RouteLoadingFallback } from "@/components/ui/RouteLoadingFallback";
+import { EmptyState as SharedEmptyState } from "@/components/ui/EmptyState";
 import { useFinanceStore } from "@/features/finance/finance-store";
 import { defaultFinanceCategories } from "@/features/finance/categories";
 import { computeFinanceSummary } from "@/features/finance/finance-calculations";
@@ -425,15 +426,5 @@ export function FinancePage() {
 }
 
 function EmptyState({ label, cta, onCreate }: { label: string; cta: string; onCreate: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center text-center py-16 gap-3 empty-state-in">
-      <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
-        <Wallet className="h-6 w-6 text-accent-500" />
-      </div>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs">{label}</p>
-      <Button variant="primary" onClick={onCreate}>
-        <Plus className="h-4 w-4" /> {cta}
-      </Button>
-    </div>
-  );
+  return <SharedEmptyState icon={Wallet} description={label} action={{ label: cta, onClick: onCreate, icon: Plus }} />;
 }

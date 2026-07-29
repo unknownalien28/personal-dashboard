@@ -21,7 +21,7 @@ export function Topbar() {
         "sticky top-0 z-10 flex items-center justify-between h-14",
         "pt-[env(safe-area-inset-top)]",
         "pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:px-6",
-        "border-b border-[var(--color-border)] bg-[var(--color-canvas)]/80 backdrop-blur",
+        "border-b border-[var(--color-border)] glass-panel glass-glow-border-bottom",
       ].join(" ")}
     >
       {mobileSearchOpen ? (

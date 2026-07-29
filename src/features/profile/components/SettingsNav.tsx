@@ -1,11 +1,19 @@
-import { User, Palette, Bell, SlidersHorizontal, Database, Info, ChevronRight } from "lucide-react";
+import { User, Palette, Bell, SlidersHorizontal, Database, Info, ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-export type SettingsSection = "profile" | "appearance" | "notifications" | "preferences" | "data" | "about";
+export type SettingsSection =
+  | "profile"
+  | "appearance"
+  | "visualEffects"
+  | "notifications"
+  | "preferences"
+  | "data"
+  | "about";
 
 const sections: { value: SettingsSection; label: string; icon: typeof User; description: string }[] = [
   { value: "profile", label: "Profile", icon: User, description: "Name, avatar, and identity" },
   { value: "appearance", label: "Appearance", icon: Palette, description: "Theme, accent color, density" },
+  { value: "visualEffects", label: "Visual Effects", icon: Sparkles, description: "Ambient background, glow, and glass" },
   { value: "notifications", label: "Notifications", icon: Bell, description: "Reminders across the app" },
   { value: "preferences", label: "Preferences", icon: SlidersHorizontal, description: "Default views and startup page" },
   { value: "data", label: "Data Management", icon: Database, description: "Export, import, and storage" },

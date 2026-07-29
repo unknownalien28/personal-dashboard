@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useNotesStore } from "@/features/notes/notes-store";
 import { NoteCard, type NoteCardMode } from "@/features/notes/components/NoteCard";
 import { NoteEditor } from "@/features/notes/components/NoteEditor";
@@ -178,19 +179,12 @@ export function NotesPage() {
       </div>
 
       {visibleNotes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-16 gap-3 empty-state-in">
-          <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
-            <StickyNote className="h-6 w-6 text-accent-500" />
-          </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs">
-            {notes.length === 0 ? "No notes yet. Create your first one." : "No notes match this view."}
-          </p>
-          {notes.length === 0 && (
-            <Button variant="primary" onClick={handleCreate}>
-              <Plus className="h-4 w-4" /> New note
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={StickyNote}
+          description={notes.length === 0 ? "No notes yet. Create your first one." : "No notes match this view."}
+          action={notes.length === 0 ? { label: "New note", onClick: handleCreate, icon: Plus } : undefined}
+          compact
+        />
       ) : (
         <ul role="list" className="flex flex-col gap-2.5">
           {visibleNotes.map((note, i) => (

@@ -12,7 +12,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden md:flex flex-col shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)]",
+        "relative z-[1] hidden md:flex flex-col shrink-0 border-r border-[var(--color-border)]",
+        "glass-panel glass-glow-border",
         "transition-[width] duration-200 ease-out",
         collapsed ? "w-[68px]" : "w-60"
       )}
@@ -34,10 +35,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             end={item.to === "/"}
             className={({ isActive }) =>
               cn(
-                "relative flex items-center gap-3 rounded-lg px-2.5 h-9 text-sm font-medium",
+                "relative flex items-center gap-3 rounded-lg px-2.5 h-9 text-sm font-medium nav-glow",
                 "transition-[background-color,color,transform] duration-150 active:scale-[0.98]",
                 isActive
-                  ? "bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-400"
+                  ? "bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-400 nav-glow-active"
                   : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               )
             }

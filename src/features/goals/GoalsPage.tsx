@@ -3,6 +3,7 @@ import { Plus, Target } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { RouteLoadingFallback } from "@/components/ui/RouteLoadingFallback";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useGoalsStore, type GoalInput } from "@/features/goals/goals-store";
 import { defaultGoalCategories } from "@/features/goals/categories";
 import { GoalCard, type GoalCardMode } from "@/features/goals/components/GoalCard";
@@ -233,19 +234,12 @@ export function GoalsPage() {
               <GoalStatsPanel goals={goals} />
             </Suspense>
           ) : filteredGoals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-16 gap-3 empty-state-in">
-              <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
-                <Target className="h-6 w-6 text-accent-500" />
-              </div>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs">
-                {goals.length === 0 ? "No goals yet. Create your first one." : "No goals match this view."}
-              </p>
-              {goals.length === 0 && (
-                <Button variant="primary" onClick={openCreate}>
-                  <Plus className="h-4 w-4" /> Add a goal
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={Target}
+              description={goals.length === 0 ? "No goals yet. Create your first one." : "No goals match this view."}
+              action={goals.length === 0 ? { label: "Add a goal", onClick: openCreate, icon: Plus } : undefined}
+              compact
+            />
           ) : view === "kanban" ? (
             <GoalKanbanBoard
               goals={activeGoalsForBoard}

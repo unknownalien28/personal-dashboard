@@ -11,7 +11,7 @@ export function MobileNav() {
     <nav
       className={cn(
         "md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch justify-around",
-        "h-16 bg-[var(--color-surface)]/95 backdrop-blur border-t border-[var(--color-border)]",
+        "h-16 glass-panel border-t border-[var(--color-border)]",
         "pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
       )}
     >

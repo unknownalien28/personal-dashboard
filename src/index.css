@@ -254,6 +254,243 @@ html.dark .hover-lift:hover {
   }
 }
 
+/* ==========================================================================
+   AlienOS Phase 3 - Ambient Space Identity
+   Layered cosmic background + depth/glow/glass system. Everything here only
+   animates transform/opacity/filter so it stays GPU-friendly, and every
+   looping animation is neutralized by the reduced-motion rules above and by
+   the .no-* toggle classes below (Settings > Visual Effects).
+   ========================================================================== */
+
+:root {
+  /* Neutral fallback tint (accent color overrides this at runtime, see useApplyAppearance) */
+  --atmosphere-r: 37;
+  --atmosphere-g: 99;
+  --atmosphere-b: 235;
+}
+
+.ambient-root {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.ambient-layer {
+  position: absolute;
+  inset: -10%;
+  will-change: transform;
+}
+
+/* Layer 1 - deep space gradient, theme aware */
+.ambient-space-gradient {
+  background: linear-gradient(160deg, #f5f6fb 0%, #eef0f8 45%, #f7f1f6 100%);
+}
+html.dark .ambient-space-gradient {
+  background: radial-gradient(120% 90% at 15% -10%, #0d1230 0%, #070a1a 45%, #030309 100%);
+}
+
+/* Layer 2 - nebula tint, blends the selected accent color with a per-page atmosphere hue */
+.ambient-nebula {
+  opacity: 0.5;
+  filter: blur(60px);
+  background:
+    radial-gradient(38% 32% at 18% 22%, rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.16), transparent 70%),
+    radial-gradient(42% 36% at 82% 68%, rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.12), transparent 70%);
+  transition: background 600ms var(--ease-out);
+}
+html.dark .ambient-nebula {
+  opacity: 0.85;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(38% 32% at 18% 22%, rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.28), transparent 70%),
+    radial-gradient(42% 36% at 82% 68%, rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.22), transparent 70%);
+}
+
+/* Page atmosphere - a faint per-module tint layered above the accent nebula.
+   Kept deliberately subtle (low opacity, large soft blobs) so it reads as
+   "this room feels a little different" rather than a separate theme. */
+.ambient-atmosphere-tint {
+  opacity: 0.16;
+  filter: blur(70px);
+  transition: background 700ms var(--ease-out), opacity 700ms var(--ease-out);
+  background: transparent;
+}
+html.dark .ambient-atmosphere-tint {
+  opacity: 0.28;
+}
+.ambient-root[data-atmosphere="tasks"] .ambient-atmosphere-tint {
+  background: radial-gradient(45% 40% at 75% 15%, rgba(56, 130, 246, 0.5), transparent 70%);
+}
+.ambient-root[data-atmosphere="notes"] .ambient-atmosphere-tint {
+  background: radial-gradient(50% 45% at 30% 80%, rgba(30, 41, 59, 0.6), transparent 70%);
+}
+.ambient-root[data-atmosphere="calendar"] .ambient-atmosphere-tint {
+  background: radial-gradient(40% 36% at 85% 75%, rgba(99, 102, 241, 0.45), transparent 70%);
+}
+.ambient-root[data-atmosphere="goals"] .ambient-atmosphere-tint {
+  background: radial-gradient(46% 40% at 20% 20%, rgba(147, 51, 234, 0.5), transparent 70%);
+}
+.ambient-root[data-atmosphere="finance"] .ambient-atmosphere-tint {
+  background: radial-gradient(46% 40% at 78% 25%, rgba(16, 185, 129, 0.45), transparent 70%),
+    radial-gradient(40% 34% at 15% 78%, rgba(34, 211, 238, 0.35), transparent 70%);
+}
+.ambient-root[data-atmosphere="content"] .ambient-atmosphere-tint {
+  background: radial-gradient(44% 38% at 25% 25%, rgba(244, 114, 182, 0.4), transparent 70%);
+}
+.ambient-root[data-atmosphere="ai"] .ambient-atmosphere-tint {
+  background: radial-gradient(44% 38% at 75% 30%, rgba(99, 102, 241, 0.4), transparent 70%);
+}
+.ambient-root[data-atmosphere="profile"] .ambient-atmosphere-tint {
+  opacity: 0.06;
+}
+.ambient-root[data-atmosphere="home"] .ambient-atmosphere-tint {
+  background: radial-gradient(50% 45% at 50% 10%, rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.35), transparent 70%);
+}
+
+/* Layer 3 - blurred floating planets/moons. Each .ambient-planet-N carries its own
+   position/size; the inner element handles the slow float so an outer wrapper
+   can independently carry the parallax transform. */
+.ambient-planet-wrap {
+  position: absolute;
+  transform: translate3d(calc(var(--parallax-x, 0) * var(--depth, 12) * 1px), calc(var(--parallax-y, 0) * var(--depth, 12) * 1px), 0);
+  transition: transform 240ms linear;
+}
+.ambient-planet {
+  border-radius: 50%;
+  filter: blur(2px);
+  opacity: 0.35;
+  background-image: var(--planet-light);
+}
+html.dark .ambient-planet {
+  opacity: 0.5;
+  background-image: var(--planet-dark);
+}
+@keyframes planet-float-a {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(18px, -22px); }
+}
+@keyframes planet-float-b {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-24px, 16px); }
+}
+.ambient-planet-float-a { animation: planet-float-a 46s var(--ease-in-out) infinite; }
+.ambient-planet-float-b { animation: planet-float-b 58s var(--ease-in-out) infinite; }
+
+/* Layer 4 - sparse star field, tiny brightness twinkle */
+@keyframes star-twinkle {
+  0%, 100% { opacity: var(--star-min, 0.15); }
+  50% { opacity: var(--star-max, 0.8); }
+}
+.ambient-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #6b7280;
+  animation: star-twinkle var(--star-duration, 5s) ease-in-out infinite;
+  animation-delay: var(--star-delay, 0s);
+}
+html.dark .ambient-star {
+  background: #e5e7eb;
+}
+
+/* Layer 5 - tiny floating particles drifting slowly upward */
+@keyframes particle-drift {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: var(--particle-opacity, 0.5); }
+  90% { opacity: var(--particle-opacity, 0.5); }
+  100% { transform: translate3d(var(--particle-dx, 12px), var(--particle-dy, -140px), 0); opacity: 0; }
+}
+.ambient-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.6);
+  animation: particle-drift var(--particle-duration, 40s) linear infinite;
+  animation-delay: var(--particle-delay, 0s);
+}
+
+/* Visual Effects settings toggles - same pattern as html.reduce-motion above:
+   presence of the class turns the effect OFF, so the enhanced-default stays a
+   one-line opt-out per surface instead of prop-drilling through every component. */
+html.no-glow-effects .nav-glow,
+html.no-glow-effects .card-glow,
+html.no-glow-effects .glass-glow-border,
+html.no-glow-effects .glass-glow-border-bottom {
+  box-shadow: none !important;
+}
+html.no-glass-effects .glass-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: var(--color-surface) !important;
+}
+html.no-ambient-bg .ambient-root,
+html.no-planets .ambient-planet-wrap,
+html.no-star-field .ambient-star,
+html.no-particles .ambient-particle {
+  display: none !important;
+}
+
+/* Depth & lighting - navigation glow */
+.nav-glow {
+  transition: box-shadow var(--duration-base) var(--ease-out), background-color var(--duration-base) var(--ease-out);
+}
+.nav-glow.nav-glow-active {
+  box-shadow: 0 0 0 1px rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.18),
+    0 4px 16px -4px rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.35);
+}
+.nav-glow:hover {
+  box-shadow: 0 0 0 1px rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.14),
+    0 2px 10px -2px rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.25);
+}
+
+/* Depth & lighting - card elevation with a whisper of ambient glow on hover */
+.card-glow {
+  transition: box-shadow var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+}
+.card-glow:hover {
+  box-shadow:
+    0 12px 32px -12px rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.12);
+}
+html.dark .card-glow:hover {
+  box-shadow:
+    0 12px 32px -12px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.22);
+}
+
+/* Depth & lighting - frosted glass surfaces for topbar / sidebar */
+.glass-panel {
+  background-color: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+.glass-glow-border {
+  box-shadow: inset -1px 0 0 rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.08);
+}
+.glass-glow-border-bottom {
+  box-shadow: inset 0 -1px 0 rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.1);
+}
+
+/* Empty states - gentle ambient glow behind the icon + slow float, upgraded from the plain icon box */
+@keyframes empty-icon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.empty-icon-glow {
+  position: relative;
+  animation: empty-icon-float 6s var(--ease-in-out) infinite;
+}
+.empty-icon-glow::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(var(--atmosphere-r), var(--atmosphere-g), var(--atmosphere-b), 0.28), transparent 70%);
+  filter: blur(6px);
+  z-index: -1;
+}
+
 /* Compact mode tightens the most visible spacing: page padding and stacked-section gaps */
 html.compact main > div {
   padding-top: 1rem;

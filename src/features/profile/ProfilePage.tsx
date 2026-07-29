@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { SettingsNav, type SettingsSection } from "@/features/profile/components/SettingsNav";
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { AppearanceSection } from "@/features/profile/components/AppearanceSection";
+import { VisualEffectsSection } from "@/features/profile/components/VisualEffectsSection";
 import { NotificationsSection } from "@/features/profile/components/NotificationsSection";
 import { PreferencesSection } from "@/features/profile/components/PreferencesSection";
 import { DataManagementSection } from "@/features/profile/components/DataManagementSection";
@@ -11,6 +12,7 @@ import { AboutSection } from "@/features/profile/components/AboutSection";
 const sectionLabels: Record<SettingsSection, string> = {
   profile: "Profile",
   appearance: "Appearance",
+  visualEffects: "Visual Effects",
   notifications: "Notifications",
   preferences: "Preferences",
   data: "Data Management",
@@ -23,6 +25,8 @@ function renderSection(section: SettingsSection) {
       return <ProfileSection />;
     case "appearance":
       return <AppearanceSection />;
+    case "visualEffects":
+      return <VisualEffectsSection />;
     case "notifications":
       return <NotificationsSection />;
     case "preferences":

@@ -8,6 +8,14 @@ const FONT_SIZE_PX: Record<string, string> = {
   large: "18px",
 };
 
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return [r, g, b];
+}
+
 /**
  * Applies appearance settings globally by writing to the same CSS custom
  * properties (--color-accent-*) and a couple of html classes the rest of the
@@ -25,6 +33,11 @@ export function useApplyAppearance() {
     root.style.setProperty("--color-accent-500", shades[500]);
     root.style.setProperty("--color-accent-600", shades[600]);
     root.style.setProperty("--color-accent-700", shades[700]);
+
+    const [r, g, b] = hexToRgb(shades[500]);
+    root.style.setProperty("--atmosphere-r", String(r));
+    root.style.setProperty("--atmosphere-g", String(g));
+    root.style.setProperty("--atmosphere-b", String(b));
   }, [accentColor]);
 
   useEffect(() => {

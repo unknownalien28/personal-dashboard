@@ -2,6 +2,7 @@ import { memo } from "react";
 import { format, isSameDay } from "date-fns";
 import { CalendarX } from "lucide-react";
 import { EventChip } from "@/features/calendar/components/EventChip";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { Occurrence } from "@/features/calendar/occurrences";
 
 interface AgendaViewProps {
@@ -12,16 +13,7 @@ interface AgendaViewProps {
 
 function AgendaViewBase({ occurrences, onOpenEvent, emptyMessage }: AgendaViewProps) {
   if (occurrences.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center text-center py-16 gap-3 empty-state-in">
-        <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
-          <CalendarX className="h-6 w-6 text-accent-500" />
-        </div>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs">
-          {emptyMessage ?? "No events match this view."}
-        </p>
-      </div>
-    );
+    return <EmptyState icon={CalendarX} description={emptyMessage ?? "No events match this view."} compact />;
   }
 
   const groups: { day: Date; items: Occurrence[] }[] = [];

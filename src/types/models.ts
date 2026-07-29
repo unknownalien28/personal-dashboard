@@ -205,6 +205,19 @@ export interface AppearanceSettings {
   reducedMotion: boolean;
 }
 
+/** Independent toggles for the ambient space environment (Settings > Visual Effects). */
+export interface VisualEffectsSettings {
+  ambientBackground: boolean;
+  floatingPlanets: boolean;
+  starField: boolean;
+  floatingParticles: boolean;
+  mouseParallax: boolean;
+  glowEffects: boolean;
+  glassEffects: boolean;
+  /** Master "lite" switch - dials every effect down at once, independent of the individual toggles above. */
+  reducedVisualEffects: boolean;
+}
+
 export interface NotificationSettings {
   calendarReminders: boolean;
   goalReminders: boolean;
