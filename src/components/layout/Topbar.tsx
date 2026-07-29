@@ -46,7 +46,7 @@ export function Topbar() {
       ) : (
         <>
           <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {current?.label ?? "Dashboard"}
+            {current?.label ?? "AlienOS"}
           </h1>
 
           <div className="flex items-center gap-1.5 sm:gap-2">

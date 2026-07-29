@@ -39,6 +39,25 @@ export const goalIconKeys = [
 
 export type GoalIconKey = (typeof goalIconKeys)[number];
 
+export const goalIconLabels: Record<GoalIconKey, string> = {
+  target: "Target",
+  trophy: "Trophy",
+  briefcase: "Briefcase",
+  graduationCap: "Graduation cap",
+  heartPulse: "Health",
+  wallet: "Wallet",
+  rocket: "Rocket",
+  bookOpen: "Book",
+  dumbbell: "Fitness",
+  home: "Home",
+  plane: "Travel",
+  code: "Code",
+  palette: "Creative",
+  music: "Music",
+  users: "People",
+  star: "Star",
+};
+
 export const goalIconMap: Record<GoalIconKey, LucideIcon> = {
   target: Target,
   trophy: Trophy,

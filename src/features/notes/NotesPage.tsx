@@ -178,7 +178,7 @@ export function NotesPage() {
       </div>
 
       {visibleNotes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-16 gap-3">
+        <div className="flex flex-col items-center justify-center text-center py-16 gap-3 empty-state-in">
           <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
             <StickyNote className="h-6 w-6 text-accent-500" />
           </div>
@@ -193,8 +193,8 @@ export function NotesPage() {
         </div>
       ) : (
         <ul role="list" className="flex flex-col gap-2.5">
-          {visibleNotes.map((note) => (
-            <li key={note.id}>
+          {visibleNotes.map((note, i) => (
+            <li key={note.id} className="item-in" style={{ "--stagger-delay": `${Math.min(i * 30, 300)}ms` } as React.CSSProperties}>
               <NoteCard
                 note={note}
                 selected={note.id === selectedId}

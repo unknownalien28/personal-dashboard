@@ -13,13 +13,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Personal Dashboard',
-        short_name: 'Dashboard',
-        description: 'A personal productivity hub — tasks, notes, calendar, goals, finance, and more.',
+        name: 'AlienOS',
+        short_name: 'AlienOS',
+        description: 'AlienOS — your personal productivity operating system. Tasks, notes, calendar, goals, and finance, all in one place.',
         start_url: '/',
         display: 'standalone',
-        background_color: '#fafafa',
-        theme_color: '#5e6ad2',
+        background_color: '#0b1220',
+        theme_color: '#2563eb',
         orientation: 'portrait-primary',
         icons: [
           {

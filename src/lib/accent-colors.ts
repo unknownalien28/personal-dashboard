@@ -10,29 +10,29 @@ interface AccentShades {
 }
 
 export const accentColorLabels: Record<AccentColorKey, string> = {
-  indigo: "Indigo",
-  blue: "Blue",
-  green: "Green",
-  rose: "Rose",
-  orange: "Orange",
-  violet: "Violet",
+  alienBlue: "Alien Blue",
+  cosmicPurple: "Cosmic Purple",
+  auroraGreen: "Aurora Green",
+  solarOrange: "Solar Orange",
+  crimsonRed: "Crimson Red",
+  sakuraPink: "Sakura Pink",
 };
 
 /** Swatch color shown in the picker (the 500 shade). */
 export const accentColorSwatch: Record<AccentColorKey, string> = {
-  indigo: "#5e6ad2",
-  blue: "#3b82f6",
-  green: "#16a34a",
-  rose: "#e11d48",
-  orange: "#ea580c",
-  violet: "#8b5cf6",
+  alienBlue: "#2563eb",
+  cosmicPurple: "#7c3aed",
+  auroraGreen: "#22c55e",
+  solarOrange: "#f59e0b",
+  crimsonRed: "#ef4444",
+  sakuraPink: "#ec4899",
 };
 
 export const accentColorShades: Record<AccentColorKey, AccentShades> = {
-  indigo: { 50: "#eef0fd", 100: "#dde1fb", 400: "#7c87e8", 500: "#5e6ad2", 600: "#4c56b8", 700: "#3d4494" },
-  blue: { 50: "#eff6ff", 100: "#dbeafe", 400: "#60a5fa", 500: "#3b82f6", 600: "#2563eb", 700: "#1d4ed8" },
-  green: { 50: "#f0fdf4", 100: "#dcfce7", 400: "#4ade80", 500: "#16a34a", 600: "#15803d", 700: "#166534" },
-  rose: { 50: "#fff1f2", 100: "#ffe4e6", 400: "#fb7185", 500: "#e11d48", 600: "#be123c", 700: "#9f1239" },
-  orange: { 50: "#fff7ed", 100: "#ffedd5", 400: "#fb923c", 500: "#ea580c", 600: "#c2410c", 700: "#9a3412" },
-  violet: { 50: "#f5f3ff", 100: "#ede9fe", 400: "#a78bfa", 500: "#8b5cf6", 600: "#7c3aed", 700: "#6d28d9" },
+  alienBlue: { 50: "#eff6ff", 100: "#dbeafe", 400: "#60a5fa", 500: "#2563eb", 600: "#1d4ed8", 700: "#1e40af" },
+  cosmicPurple: { 50: "#f5f3ff", 100: "#ede9fe", 400: "#a78bfa", 500: "#7c3aed", 600: "#6d28d9", 700: "#5b21b6" },
+  auroraGreen: { 50: "#f0fdf4", 100: "#dcfce7", 400: "#4ade80", 500: "#22c55e", 600: "#16a34a", 700: "#15803d" },
+  solarOrange: { 50: "#fffbeb", 100: "#fef3c7", 400: "#fbbf24", 500: "#f59e0b", 600: "#d97706", 700: "#b45309" },
+  crimsonRed: { 50: "#fef2f2", 100: "#fee2e2", 400: "#f87171", 500: "#ef4444", 600: "#dc2626", 700: "#b91c1c" },
+  sakuraPink: { 50: "#fdf2f8", 100: "#fce7f3", 400: "#f472b6", 500: "#ec4899", 600: "#db2777", 700: "#be185d" },
 };

@@ -82,7 +82,7 @@ export function TasksPage() {
       )}
 
       {tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-20 gap-3">
+        <div className="flex flex-col items-center justify-center text-center py-20 gap-3 empty-state-in">
           <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
             <CheckSquare className="h-6 w-6 text-accent-500" />
           </div>
@@ -100,14 +100,15 @@ export function TasksPage() {
         </p>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {visibleTasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={() => toggleTask(task.id)}
-              onEdit={() => openEditModal(task)}
-              onDelete={() => deleteTask(task.id)}
-            />
+          {visibleTasks.map((task, i) => (
+            <div key={task.id} className="item-in" style={{ "--stagger-delay": `${Math.min(i * 30, 300)}ms` } as React.CSSProperties}>
+              <TaskItem
+                task={task}
+                onToggle={() => toggleTask(task.id)}
+                onEdit={() => openEditModal(task)}
+                onDelete={() => deleteTask(task.id)}
+              />
+            </div>
           ))}
         </div>
       )}

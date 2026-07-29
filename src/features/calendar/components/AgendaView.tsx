@@ -13,7 +13,7 @@ interface AgendaViewProps {
 function AgendaViewBase({ occurrences, onOpenEvent, emptyMessage }: AgendaViewProps) {
   if (occurrences.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center text-center py-16 gap-3">
+      <div className="flex flex-col items-center justify-center text-center py-16 gap-3 empty-state-in">
         <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
           <CalendarX className="h-6 w-6 text-accent-500" />
         </div>

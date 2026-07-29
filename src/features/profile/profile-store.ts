@@ -12,7 +12,7 @@ export const useProfileStore = create<ProfileState>()(
     (set) => ({
       name: "there",
       role: "",
-      avatarColor: "#5e6ad2",
+      avatarColor: "#2563eb",
       avatarDataUrl: null,
       email: "",
       bio: "",

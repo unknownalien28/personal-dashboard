@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { goalColors, goalColorConfig } from "@/features/goals/goal-color-config";
-import { goalIconKeys, goalIconMap } from "@/features/goals/goal-icons";
+import { goalIconKeys, goalIconMap, goalIconLabels } from "@/features/goals/goal-icons";
 import { goalStatuses, goalStatusConfig } from "@/features/goals/goal-status-config";
 import type { GoalInput } from "@/features/goals/goals-store";
 import type { Goal, Priority, GoalStatus } from "@/types/models";
+import { useShake } from "@/hooks/useShake";
 import { cn } from "@/lib/utils/cn";
 
 interface GoalFormProps {
@@ -17,6 +18,7 @@ interface GoalFormProps {
 
 export function GoalForm({ initial, categories, onSubmit, onCancel }: GoalFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
+  const titleShake = useShake();
   const [description, setDescription] = useState(initial?.description ?? "");
   const [category, setCategory] = useState(initial?.category ?? categories[0] ?? "Other");
   const [priority, setPriority] = useState<Priority>(initial?.priority ?? "medium");
@@ -28,7 +30,10 @@ export function GoalForm({ initial, categories, onSubmit, onCancel }: GoalFormPr
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      titleShake.trigger();
+      return;
+    }
     onSubmit({
       title: title.trim(),
       description: description.trim(),
@@ -50,8 +55,12 @@ export function GoalForm({ initial, categories, onSubmit, onCancel }: GoalFormPr
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onAnimationEnd={titleShake.onAnimationEnd}
           placeholder="What do you want to achieve?"
-          className="w-full h-11 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-accent-400"
+          className={cn(
+            "w-full h-11 rounded-lg border bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-accent-400",
+            titleShake.shaking ? "border-danger field-shake" : "border-[var(--color-border)]"
+          )}
         />
       </div>
 
@@ -76,7 +85,7 @@ export function GoalForm({ initial, categories, onSubmit, onCancel }: GoalFormPr
                 key={key}
                 type="button"
                 onClick={() => setIcon(key)}
-                aria-label={key}
+                aria-label={goalIconLabels[key]}
                 aria-pressed={icon === key}
                 className={cn(
                   "h-9 w-9 flex items-center justify-center rounded-lg border transition-colors duration-150",

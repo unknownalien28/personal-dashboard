@@ -1,12 +1,13 @@
 import { storageAdapter, STORAGE_PREFIX } from "@/lib/storage";
 
 /** Every zustand-persisted store key this app currently writes to localStorage. */
-const DATA_KEYS = ["tasks", "notes", "calendar", "goals", "profile", "settings", "theme", "weather"] as const;
+const DATA_KEYS = ["tasks", "notes", "calendar", "goals", "finance", "profile", "settings", "theme", "weather"] as const;
 type DataKey = (typeof DATA_KEYS)[number];
 
 const EXPORT_VERSION = 1;
 
 export interface DashboardExport {
+  app: string;
   version: number;
   exportedAt: string;
   data: Partial<Record<DataKey, unknown>>;
@@ -25,7 +26,7 @@ export async function exportAllData(): Promise<DashboardExport> {
       }
     }
   }
-  return { version: EXPORT_VERSION, exportedAt: new Date().toISOString(), data };
+  return { app: "AlienOS", version: EXPORT_VERSION, exportedAt: new Date().toISOString(), data };
 }
 
 export function downloadExport(exportData: DashboardExport) {
@@ -33,7 +34,7 @@ export function downloadExport(exportData: DashboardExport) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `dashboard-export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `alienos-export-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();

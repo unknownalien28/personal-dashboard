@@ -14,7 +14,7 @@ interface SettingsState {
 }
 
 const defaultAppearance: AppearanceSettings = {
-  accentColor: "indigo",
+  accentColor: "alienBlue",
   fontSize: "medium",
   compactMode: false,
   reducedMotion: false,

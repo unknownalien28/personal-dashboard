@@ -233,7 +233,7 @@ export function GoalsPage() {
               <GoalStatsPanel goals={goals} />
             </Suspense>
           ) : filteredGoals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-16 gap-3">
+            <div className="flex flex-col items-center justify-center text-center py-16 gap-3 empty-state-in">
               <div className="h-12 w-12 rounded-xl bg-accent-50 dark:bg-accent-500/15 flex items-center justify-center">
                 <Target className="h-6 w-6 text-accent-500" />
               </div>
@@ -259,16 +259,17 @@ export function GoalsPage() {
             />
           ) : (
             <div className={view === "grid" ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" : "flex flex-col gap-2.5"}>
-              {filteredGoals.map((goal) => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  mode={cardMode}
-                  layout={view === "list" ? "list" : "grid"}
-                  selected={goal.id === editingId}
-                  onSelect={() => openEdit(goal.id)}
-                  {...actionsFor(goal)}
-                />
+              {filteredGoals.map((goal, i) => (
+                <div key={goal.id} className="item-in" style={{ "--stagger-delay": `${Math.min(i * 30, 300)}ms` } as React.CSSProperties}>
+                  <GoalCard
+                    goal={goal}
+                    mode={cardMode}
+                    layout={view === "list" ? "list" : "grid"}
+                    selected={goal.id === editingId}
+                    onSelect={() => openEdit(goal.id)}
+                    {...actionsFor(goal)}
+                  />
+                </div>
               ))}
             </div>
           )}

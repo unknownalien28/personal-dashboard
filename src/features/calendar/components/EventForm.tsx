@@ -5,6 +5,7 @@ import { eventColors, eventColorConfig } from "@/features/calendar/event-color-c
 import type { EventInput } from "@/features/calendar/calendar-store";
 import type { CalendarEvent, EventColor, ReminderOption, RepeatOption } from "@/types/models";
 import { toDateKey } from "@/features/calendar/date-utils";
+import { useShake } from "@/hooks/useShake";
 import { cn } from "@/lib/utils/cn";
 
 const reminderLabels: Record<ReminderOption, string> = {
@@ -45,6 +46,7 @@ export function EventForm({ initial, defaultDate, categories, onSubmit, onCancel
   const defaultDateKey = defaultDate ? toDateKey(defaultDate) : toDateKey(new Date());
 
   const [title, setTitle] = useState(initial?.title ?? "");
+  const titleShake = useShake();
   const [description, setDescription] = useState(initial?.description ?? "");
   const [startDate, setStartDate] = useState(initial?.startDate ?? defaultDateKey);
   const [endDate, setEndDate] = useState(initial?.endDate ?? defaultDateKey);
@@ -59,7 +61,10 @@ export function EventForm({ initial, defaultDate, categories, onSubmit, onCancel
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      titleShake.trigger();
+      return;
+    }
     onSubmit({
       title: title.trim(),
       description: description.trim(),
@@ -85,7 +90,11 @@ export function EventForm({ initial, defaultDate, categories, onSubmit, onCancel
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Event title"
-          className="w-full h-11 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-accent-400"
+          onAnimationEnd={titleShake.onAnimationEnd}
+          className={cn(
+            "w-full h-11 rounded-lg border bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-accent-400",
+            titleShake.shaking ? "border-danger field-shake" : "border-[var(--color-border)]"
+          )}
         />
       </div>
 

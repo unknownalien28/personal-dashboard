@@ -1,4 +1,4 @@
-import { Info, Keyboard, ScrollText, Heart } from "lucide-react";
+import { Keyboard, ScrollText, Heart } from "lucide-react";
 
 const APP_VERSION = "1.0.0";
 
@@ -28,10 +28,11 @@ export function AboutSection() {
   return (
     <div className="flex flex-col gap-6 max-w-lg">
       <div className="rounded-lg border border-[var(--color-border)] p-4 flex items-center gap-3">
-        <Info className="h-5 w-5 text-zinc-400 shrink-0" />
+        <img src="/logo.svg" alt="" className="h-10 w-10 shrink-0 rounded-lg" />
         <div>
-          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Personal Dashboard</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">AlienOS</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Your Personal Productivity Operating System</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
             Version {APP_VERSION} — built with Vite, React, and TypeScript
           </p>
         </div>
@@ -72,7 +73,7 @@ export function AboutSection() {
 
       <div className="flex items-start gap-2 text-xs text-zinc-500 dark:text-zinc-400">
         <Heart className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-        <p>Built as a personal productivity project. All data stays in your browser's local storage.</p>
+        <p>AlienOS is a personal productivity project. All data stays in your browser's local storage.</p>
       </div>
     </div>
   );

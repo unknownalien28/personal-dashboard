@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { Priority, Task } from "@/types/models";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Button } from "@/components/ui/Button";
+import { useShake } from "@/hooks/useShake";
+import { cn } from "@/lib/utils/cn";
 
 export interface TaskFormValues {
   title: string;
@@ -22,10 +24,14 @@ export function TaskForm({ initial, existingCategories, onSubmit, onCancel }: Ta
   const [category, setCategory] = useState(initial?.category ?? "");
   const [priority, setPriority] = useState<Priority>(initial?.priority ?? "medium");
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
+  const titleShake = useShake();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      titleShake.trigger();
+      return;
+    }
     onSubmit({
       title: title.trim(),
       category: category.trim() || "General",
@@ -44,8 +50,12 @@ export function TaskForm({ initial, existingCategories, onSubmit, onCancel }: Ta
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onAnimationEnd={titleShake.onAnimationEnd}
           placeholder="What needs to get done?"
-          className="w-full h-11 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-accent-400"
+          className={cn(
+            "w-full h-11 rounded-lg border bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-accent-400",
+            titleShake.shaking ? "border-danger field-shake" : "border-[var(--color-border)]"
+          )}
         />
       </div>
 

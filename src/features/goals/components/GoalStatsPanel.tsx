@@ -3,15 +3,16 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Card } from "@/components/ui/Card";
 import { computeGoalStats } from "@/features/goals/goal-stats";
 import { goalStatusConfig } from "@/features/goals/goal-status-config";
+import { prefersReducedMotion } from "@/hooks/prefersReducedMotion";
 import type { Goal } from "@/types/models";
 
 interface GoalStatsPanelProps {
   goals: Goal[];
 }
 
-function StatBlock({ label, value }: { label: string; value: string | number }) {
+function StatBlock({ label, value, delay }: { label: string; value: string | number; delay: number }) {
   return (
-    <Card className="p-4">
+    <Card className="p-4 item-in" style={{ "--stagger-delay": `${delay}ms` } as React.CSSProperties}>
       <div className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{value}</div>
       <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{label}</div>
     </Card>
@@ -20,6 +21,7 @@ function StatBlock({ label, value }: { label: string; value: string | number }) 
 
 function GoalStatsPanelBase({ goals }: GoalStatsPanelProps) {
   const stats = computeGoalStats(goals);
+  const chartAnimation = !prefersReducedMotion();
 
   const statusData = (Object.keys(stats.statusBreakdown) as (keyof typeof stats.statusBreakdown)[]).map((key) => ({
     name: goalStatusConfig[key].label,
@@ -37,14 +39,14 @@ function GoalStatsPanelBase({ goals }: GoalStatsPanelProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatBlock label="Completion rate" value={`${stats.completionRate}%`} />
-        <StatBlock label="Overall progress" value={`${stats.overallProgress}%`} />
-        <StatBlock label="Completed this month" value={stats.completedThisMonth} />
-        <StatBlock label="Completed this year" value={stats.completedThisYear} />
-        <StatBlock label="Overdue goals" value={stats.overdue} />
-        <StatBlock label="Completion streak" value={`${stats.completionStreakMonths}mo`} />
-        <StatBlock label="Active goals" value={stats.total} />
-        <StatBlock label="Completed goals" value={stats.completed} />
+        <StatBlock label="Completion rate" value={`${stats.completionRate}%`} delay={0} />
+        <StatBlock label="Overall progress" value={`${stats.overallProgress}%`} delay={30} />
+        <StatBlock label="Completed this month" value={stats.completedThisMonth} delay={60} />
+        <StatBlock label="Completed this year" value={stats.completedThisYear} delay={90} />
+        <StatBlock label="Overdue goals" value={stats.overdue} delay={120} />
+        <StatBlock label="Completion streak" value={`${stats.completionStreakMonths}mo`} delay={150} />
+        <StatBlock label="Active goals" value={stats.total} delay={180} />
+        <StatBlock label="Completed goals" value={stats.completed} delay={210} />
       </div>
 
       <Card className="p-4">
@@ -59,7 +61,7 @@ function GoalStatsPanelBase({ goals }: GoalStatsPanelProps) {
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 wrapperClassName="!bg-[var(--color-surface)]"
               />
-              <Bar dataKey="count" fill="var(--color-accent-500)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill="var(--color-accent-500)" radius={[4, 4, 0, 0]} isAnimationActive={chartAnimation} animationDuration={600} animationEasing="ease-out" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -77,7 +79,7 @@ function GoalStatsPanelBase({ goals }: GoalStatsPanelProps) {
                 <span className="text-zinc-400 dark:text-zinc-500">{c.avgProgress}% avg</span>
               </div>
               <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                <div className="h-full rounded-full bg-accent-500" style={{ width: `${c.avgProgress}%` }} />
+                <div className="h-full rounded-full bg-accent-500 transition-[width] duration-300 ease-out" style={{ width: `${c.avgProgress}%` }} />
               </div>
             </div>
           ))}

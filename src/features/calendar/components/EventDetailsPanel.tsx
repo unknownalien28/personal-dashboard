@@ -53,7 +53,7 @@ export function EventDetailsPanel({
     <div
       className={cn(
         "flex flex-col bg-[var(--color-canvas)] md:bg-transparent",
-        fullScreenOnMobile && mode !== "dayList" && "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto"
+        fullScreenOnMobile && mode !== "dayList" && "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto panel-slide-in"
       )}
       role="region"
       aria-label="Event details"

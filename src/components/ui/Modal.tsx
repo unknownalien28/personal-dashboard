@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -11,14 +11,26 @@ interface ModalProps {
   className?: string;
 }
 
+type Phase = "closed" | "open" | "closing";
+
 /**
  * Mobile: slides up as a bottom sheet anchored to the screen edge, with a drag
  * handle and safe-area-aware padding, so it feels native on a phone.
  * Desktop (sm+): a centered dialog, matching the Notion/Linear feel.
+ *
+ * Stays mounted briefly after `open` becomes false so the exit animation can
+ * play instead of the dialog disappearing instantly.
  */
 export function Modal({ open, onClose, title, children, className }: ModalProps) {
+  const [phase, setPhase] = useState<Phase>(open ? "open" : "closed");
+
   useEffect(() => {
-    if (!open) return;
+    if (open) setPhase("open");
+    else setPhase((p) => (p === "closed" ? "closed" : "closing"));
+  }, [open]);
+
+  useEffect(() => {
+    if (phase === "closed") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -28,14 +40,14 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [phase, onClose]);
 
-  if (!open) return null;
+  if (phase === "closed") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px] modal-backdrop-in"
+        className={cn("absolute inset-0 bg-black/40 backdrop-blur-[2px]", phase === "open" ? "modal-backdrop-in" : "modal-backdrop-out")}
         onClick={onClose}
         aria-hidden="true"
       />
@@ -43,12 +55,15 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        onAnimationEnd={() => {
+          if (phase === "closing") setPhase("closed");
+        }}
         className={cn(
           "relative w-full sm:max-w-md bg-[var(--color-surface)] shadow-2xl",
           "rounded-t-2xl sm:rounded-2xl",
           "max-h-[88vh] sm:max-h-[85vh] flex flex-col",
           "pb-[env(safe-area-inset-bottom)] sm:pb-0",
-          "modal-sheet-in",
+          phase === "open" ? "modal-sheet-in" : "modal-sheet-out",
           className
         )}
       >

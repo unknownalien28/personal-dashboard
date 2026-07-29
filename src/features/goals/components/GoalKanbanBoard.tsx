@@ -77,7 +77,7 @@ function GoalKanbanBoardBase({
                       </p>
                     </div>
                     <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden mb-2">
-                      <div className="h-full rounded-full bg-accent-500" style={{ width: `${goal.progress}%` }} />
+                      <div className="h-full rounded-full bg-accent-500 transition-[width] duration-300 ease-out" style={{ width: `${goal.progress}%` }} />
                     </div>
                     {goal.targetDate && (
                       <Badge tone="neutral">

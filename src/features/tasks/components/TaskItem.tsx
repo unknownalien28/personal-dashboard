@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Check, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -29,7 +30,7 @@ function formatDueDate(dueDate: string | null): { label: string; overdue: boolea
   };
 }
 
-export function TaskItem({ task, onToggle, onEdit, onDelete }: TaskItemProps) {
+function TaskItemBase({ task, onToggle, onEdit, onDelete }: TaskItemProps) {
   const due = formatDueDate(task.dueDate);
   const priority = priorityConfig[task.priority];
 
@@ -87,3 +88,5 @@ export function TaskItem({ task, onToggle, onEdit, onDelete }: TaskItemProps) {
     </SwipeableRow>
   );
 }
+
+export const TaskItem = memo(TaskItemBase);

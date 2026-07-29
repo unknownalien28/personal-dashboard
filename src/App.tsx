@@ -2,6 +2,8 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { RouteLoadingFallback } from "@/components/ui/RouteLoadingFallback";
+import { NotFoundPage } from "@/components/ui/NotFoundPage";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 // Route-level code splitting keeps the initial bundle small for fast loads on
 // mid-range devices — each module's code downloads only when the person opens it.
@@ -25,23 +27,26 @@ const ProfilePage = lazy(() =>
 
 function App() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<RouteLoadingFallback />}>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/notes" element={<NotesPage />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/goals" element={<GoalsPage />} />
-            <Route path="/finance" element={<FinancePage />} />
-            <Route path="/content" element={<ContentPage />} />
-            <Route path="/ai" element={<AIPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/notes" element={<NotesPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/goals" element={<GoalsPage />} />
+              <Route path="/finance" element={<FinancePage />} />
+              <Route path="/content" element={<ContentPage />} />
+              <Route path="/ai" element={<AIPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

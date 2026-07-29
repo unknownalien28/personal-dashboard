@@ -86,15 +86,87 @@ export interface Goal {
   updatedAt: string;
 }
 
-export type TransactionType = "income" | "expense";
+export type AccountType = "cash" | "bank" | "savings" | "creditCard" | "investment" | "digitalWallet" | "custom";
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  color: NoteColor;
+  icon: string;
+  currency: string;
+  balance: number;
+  openingBalance: number;
+  notes: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TransactionType = "income" | "expense" | "transfer";
 
 export interface Transaction {
   id: string;
   type: TransactionType;
-  amount: number;
+  amount: number; // always a positive magnitude; direction comes from `type`
   category: string;
-  note: string;
-  date: string; // ISO date string
+  accountId: string;
+  transferToAccountId: string | null; // set only when type === "transfer"
+  date: string; // "YYYY-MM-DD"
+  time: string | null; // "HH:mm"
+  notes: string;
+  tags: string[];
+  hasReceipt: boolean; // placeholder flag - no real image storage
+  recurring: boolean;
+  favorite: boolean;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BudgetPeriod = "weekly" | "monthly" | "yearly";
+
+export interface Budget {
+  id: string;
+  category: string;
+  amount: number;
+  period: BudgetPeriod;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Bill {
+  id: string;
+  name: string;
+  category: string;
+  amount: number;
+  dueDate: string; // "YYYY-MM-DD"
+  reminder: ReminderOption;
+  autoRepeat: RepeatOption;
+  paid: boolean;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavingsContribution {
+  id: string;
+  amount: number;
+  date: string; // ISO timestamp
+}
+
+export interface SavingsGoal {
+  id: string;
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline: string | null;
+  color: NoteColor;
+  icon: string;
+  contributions: SavingsContribution[];
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ContentStatus = "idea" | "draft" | "scheduled" | "posted";
@@ -119,7 +191,7 @@ export interface Profile {
   language: string;
 }
 
-export type AccentColorKey = "indigo" | "blue" | "green" | "rose" | "orange" | "violet";
+export type AccentColorKey = "alienBlue" | "cosmicPurple" | "auroraGreen" | "solarOrange" | "crimsonRed" | "sakuraPink";
 export type FontSize = "small" | "medium" | "large";
 export type StartupPage = "/" | "/tasks" | "/notes" | "/calendar" | "/goals";
 export type NotesDefaultFilter = "all" | "pinned" | "archived" | "trash";

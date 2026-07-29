@@ -6,18 +6,26 @@
 @theme {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* Accent - a single restrained indigo, used sparingly */
-  --color-accent-50: #eef0fd;
-  --color-accent-100: #dde1fb;
-  --color-accent-400: #7c87e8;
-  --color-accent-500: #5e6ad2;
-  --color-accent-600: #4c56b8;
-  --color-accent-700: #3d4494;
+  /* AlienOS accent - default theme is "Alien Blue" (Primary #2563EB). Switchable in
+     Settings > Appearance; useApplyAppearance overrides these at runtime. */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #2563eb;
+  --color-accent-600: #1d4ed8;
+  --color-accent-700: #1e40af;
 
-  /* Semantic status colors, used sparingly (priorities, budgets, streaks) */
-  --color-success: #1a9e6a;
-  --color-warning: #d99a1f;
-  --color-danger: #de5b5b;
+  /* Semantic status colors */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* Motion tokens - one consistent scale used everywhere in the app */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
 }
 
 :root {
@@ -29,9 +37,10 @@
 
 html.dark {
   color-scheme: dark;
-  --color-surface: #18181b;
-  --color-canvas: #0e0e10;
-  --color-border: #2a2a2e;
+  --color-canvas: #0b1220;
+  --color-surface: #111827;
+  --color-card: #1e293b;
+  --color-border: #334155;
 }
 
 * {
@@ -83,6 +92,13 @@ html.dark body {
 .modal-backdrop-in {
   animation: modal-backdrop-in 180ms ease-out;
 }
+@keyframes modal-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.modal-backdrop-out {
+  animation: modal-backdrop-out 160ms ease-in forwards;
+}
 
 @keyframes modal-sheet-in {
   from { transform: translateY(100%); }
@@ -91,14 +107,28 @@ html.dark body {
 .modal-sheet-in {
   animation: modal-sheet-in 260ms cubic-bezier(0.32, 0.72, 0, 1);
 }
+@keyframes modal-sheet-out {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(24px); opacity: 0; }
+}
+.modal-sheet-out {
+  animation: modal-sheet-out 180ms var(--ease-in-out) forwards;
+}
 
 @keyframes modal-dialog-in {
   from { opacity: 0; transform: scale(0.97) translateY(4px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+@keyframes modal-dialog-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.97) translateY(4px); }
+}
 @media (min-width: 640px) {
   .modal-sheet-in {
     animation: modal-dialog-in 180ms ease-out;
+  }
+  .modal-sheet-out {
+    animation: modal-dialog-out 150ms var(--ease-in-out) forwards;
   }
 }
 
@@ -115,6 +145,113 @@ html.reduce-motion *::before,
 html.reduce-motion *::after {
   animation-duration: 0.01ms !important;
   transition-duration: 0.01ms !important;
+}
+
+/* ==========================================================================
+   Premium motion system - one consistent vocabulary used across every module.
+   Everything below animates only `transform`/`opacity`/`box-shadow` (GPU-friendly),
+   and is automatically neutralized by the reduced-motion rules above.
+   ========================================================================== */
+
+/* Card hover elevation - gentle lift + soft shadow growth, no layout shift (transform only) */
+.hover-lift {
+  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.18);
+}
+html.dark .hover-lift:hover {
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Generic entrance for list items, cards, and widgets - staggered via inline --stagger-delay */
+@keyframes item-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.item-in {
+  animation: item-in var(--duration-slow) var(--ease-out) both;
+  animation-delay: var(--stagger-delay, 0ms);
+}
+
+/* Empty states - soft fade + scale, slightly slower so it reads as a calm settle rather than a pop */
+@keyframes empty-state-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.empty-state-in {
+  animation: empty-state-in var(--duration-slow) var(--ease-out) both;
+}
+
+/* Form validation error shake - short, subtle, never more than a few px */
+@keyframes field-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+.field-shake {
+  animation: field-shake 340ms var(--ease-in-out);
+}
+
+/* Success pulse - for confirmation checkmarks / saved indicators */
+@keyframes success-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.success-pop {
+  animation: success-pop var(--duration-slow) var(--ease-out);
+}
+
+/* Skeleton loading shimmer */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--color-border) 25%, color-mix(in srgb, var(--color-border) 50%, transparent) 50%, var(--color-border) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* Toast notifications */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+.toast-in {
+  animation: toast-in var(--duration-base) var(--ease-out);
+}
+.toast-out {
+  animation: toast-out var(--duration-fast) var(--ease-in-out) forwards;
+}
+
+/* Sidebar / nav active indicator - fades and grows in on the active item only */
+@keyframes nav-indicator-in {
+  from { opacity: 0; transform: scaleY(0.3); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+.nav-indicator-in {
+  animation: nav-indicator-in var(--duration-base) var(--ease-out);
+}
+
+/* Full-screen mobile editor panels (Notes/Calendar/Goals) - subtle push-in entrance.
+   Scoped to mobile only; on desktop these render inline, not as an overlay. */
+@keyframes panel-slide-in {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@media (max-width: 767px) {
+  .panel-slide-in {
+    animation: panel-slide-in var(--duration-slow) var(--ease-out);
+  }
 }
 
 /* Compact mode tightens the most visible spacing: page padding and stacked-section gaps */

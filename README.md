@@ -1,7 +1,9 @@
-# Personal Dashboard
+# AlienOS
 
-A personal productivity dashboard — tasks, notes, calendar, goals & habits,
-finance, content planning, and an AI assistant — in one clean, fast app.
+**Your Personal Productivity Operating System.**
+
+Tasks, notes, calendar, goals, finance, content planning, and an AI assistant —
+in one clean, fast, private app. All data stays in your browser.
 
 ## Stack
 
@@ -11,8 +13,10 @@ finance, content planning, and an AI assistant — in one clean, fast app.
 - **React Router** — navigation between modules
 - **Zustand** — state management, with a `persist` middleware writing through
   a storage abstraction layer (see below)
+- **date-fns** — date math for Calendar and Finance (recurrence, period ranges)
 - **Recharts** — progress and finance charts
 - **lucide-react** — icons
+- **vite-plugin-pwa** — installable PWA support (manifest, service worker, offline caching)
 
 ## Running locally
 
@@ -69,8 +73,10 @@ layering in the desktop experience (sidebar, denser controls) at 768px+.
   bottom nav), tightened for desktop density above the `md` breakpoint.
 - **Safe areas** — `env(safe-area-inset-*)` is applied to the top bar, bottom nav, and
   outer shell so content isn't clipped by notches or the iOS/Android gesture bar.
-- **Swipe gestures** — `src/components/ui/SwipeableRow.tsx` is a reusable wrapper for
-  swipe-to-complete / swipe-to-delete, used by Tasks and Notes list items.
+- **Swipe gestures** — two purpose-built components: `src/components/ui/SwipeableRow.tsx`
+  (binary swipe-to-complete/delete, used by Tasks) and `src/components/ui/SwipeActions.tsx`
+  (reveal-and-tap multi-action swipe, used by Notes, Goals, and Finance list items, which
+  need more than two actions per row).
 - **Performance** — every feature module is route-split with `React.lazy`, so the
   initial bundle only includes what's needed for the first screen.
 - **Installable (PWA)** — a web app manifest and service worker (via `vite-plugin-pwa`)
@@ -83,6 +89,20 @@ preview URL — Chrome will offer an install prompt. On Vercel, this works autom
 since HTTPS is required for service workers and Vercel provides it by default.
 
 
+
+## Module status
+
+Fully implemented: Tasks, Notes, Calendar, Goals, Finance, Profile & Settings, Home.
+**Content Planner and AI Assistant are placeholder pages only** — routed and
+reachable in the nav, but not yet built out. If you pick this project up,
+those two are the obvious next modules.
+
+## Environment variables
+
+None. This is a fully client-side app — there's no server, no API keys, and no
+`.env` file to configure. All data lives in the browser's `localStorage`.
+
+## Folder structure
 
 ```
 src/

@@ -114,7 +114,7 @@ export function NoteEditor({
     <div
       className={cn(
         "flex flex-col bg-[var(--color-canvas)] md:bg-transparent",
-        fullScreenOnMobile && "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto"
+        fullScreenOnMobile && "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto panel-slide-in"
       )}
       role="region"
       aria-label="Note editor"

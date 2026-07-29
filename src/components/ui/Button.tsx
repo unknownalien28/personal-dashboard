@@ -8,6 +8,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   children?: ReactNode;
+  loading?: boolean;
 }
 
 const variantClasses: Record<Variant, string> = {
@@ -31,20 +32,31 @@ export function Button({
   size = "md",
   className,
   children,
+  loading = false,
+  disabled,
   ...props
 }: ButtonProps) {
   return (
     <button
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={cn(
-        "inline-flex items-center rounded-lg font-medium transition-colors duration-150",
+        "inline-flex items-center rounded-lg font-medium transition-[background-color,color,transform,box-shadow] duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900",
         "disabled:opacity-50 disabled:pointer-events-none",
+        "active:scale-[0.97]",
         variantClasses[variant],
         sizeClasses[size],
         className
       )}
       {...props}
     >
+      {loading && (
+        <span
+          className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent animate-spin shrink-0"
+          aria-hidden="true"
+        />
+      )}
       {children}
     </button>
   );

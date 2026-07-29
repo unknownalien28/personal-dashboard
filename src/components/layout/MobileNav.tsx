@@ -22,7 +22,7 @@ export function MobileNav() {
           end={item.to === "/"}
           className={({ isActive }) =>
             cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium",
+              "relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium",
               "transition-colors duration-150 active:bg-zinc-100 dark:active:bg-zinc-800",
               isActive
                 ? "text-accent-600 dark:text-accent-400"
@@ -30,8 +30,18 @@ export function MobileNav() {
             )
           }
         >
-          <item.icon className="h-5 w-5" />
-          <span className="truncate max-w-[64px]">{item.label}</span>
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <span
+                  className="nav-indicator-in absolute top-1 h-1 w-1 rounded-full bg-accent-500"
+                  aria-hidden="true"
+                />
+              )}
+              <item.icon className={cn("h-5 w-5 transition-transform duration-150", isActive && "scale-110")} />
+              <span className="truncate max-w-[64px]">{item.label}</span>
+            </>
+          )}
         </NavLink>
       ))}
     </nav>
