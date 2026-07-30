@@ -254,6 +254,15 @@ html.dark .hover-lift:hover {
   }
 }
 
+/* Floating AI assistant panel (Phase 6) - a quick scale+fade pop, like a popover expanding from the FAB. */
+@keyframes floating-panel-in {
+  from { transform: scale(0.95) translateY(8px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+.floating-panel-in {
+  animation: floating-panel-in 200ms var(--ease-out);
+}
+
 /* ==========================================================================
    AlienOS Phase 3 - Ambient Space Identity
    Layered cosmic background + depth/glow/glass system. Everything here only

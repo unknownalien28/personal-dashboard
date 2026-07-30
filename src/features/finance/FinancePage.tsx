@@ -22,6 +22,7 @@ import { BillRow } from "@/features/finance/components/BillRow";
 import { BillForm } from "@/features/finance/components/BillForm";
 import { SavingsGoalCard } from "@/features/finance/components/SavingsGoalCard";
 import { SavingsGoalForm } from "@/features/finance/components/SavingsGoalForm";
+import { AskAlienButton } from "@/features/ai/components/AskAlienButton";
 
 const FinanceAnalyticsView = lazy(() =>
   import("@/features/finance/components/FinanceAnalyticsView").then((m) => ({ default: m.FinanceAnalyticsView }))
@@ -291,6 +292,7 @@ export function FinancePage() {
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 capitalize">{view}</h2>
             <div className="hidden md:flex items-center gap-2">
+              <AskAlienButton label="Explain Spending" prompt="Explain my spending this month." module="finance" />
               {view === "transactions" && filteredTransactions.length > 0 && (
                 <Button variant="secondary" size="sm" onClick={handleExportCsv}>
                   <Download className="h-4 w-4" /> Export CSV

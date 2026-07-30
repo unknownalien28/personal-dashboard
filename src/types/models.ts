@@ -169,15 +169,42 @@ export interface SavingsGoal {
   updatedAt: string;
 }
 
-export type ContentStatus = "idea" | "draft" | "scheduled" | "posted";
+export type ContentPlatform =
+  | "x"
+  | "facebook"
+  | "instagram"
+  | "linkedin"
+  | "tiktok"
+  | "youtube"
+  | "threads"
+  | "telegram"
+  | "whatsapp"
+  | "blog"
+  | "custom";
+
+export type ContentStatus = "idea" | "researching" | "writing" | "editing" | "scheduled" | "published" | "archived";
 
 export interface ContentPost {
   id: string;
   title: string;
-  platform: string;
+  description: string; // short idea-stage summary, separate from the full body
+  body: string;
+  platform: ContentPlatform;
+  customPlatformName: string; // shown/used only when platform === "custom"
+  hashtags: string[];
+  mentions: string[];
   status: ContentStatus;
-  scheduledDate: string | null;
+  priority: Priority;
+  category: string;
+  campaign: string;
+  tags: string[];
+  favorite: boolean;
+  aiGenerated: boolean;
+  publishDate: string | null; // ISO date "YYYY-MM-DD"
+  publishTime: string | null; // "HH:mm"
   notes: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Profile {
@@ -229,4 +256,53 @@ export interface PreferenceSettings {
   defaultNotesFilter: NotesDefaultFilter;
   defaultGoalView: GoalDefaultView;
   startupPage: StartupPage;
+}
+
+/* ===========================================================================
+   Alien Assistant - AI provider + conversation types
+   =========================================================================== */
+
+export type AIProviderKey = "demo" | "openai" | "anthropic" | "gemini" | "ollama";
+
+/** Persisted locally (Settings > AI). The API key never leaves the browser. */
+export interface AISettings {
+  provider: AIProviderKey;
+  model: string;
+  apiKey: string;
+  streaming: boolean;
+  temperature: number;
+  maxTokens: number;
+}
+
+export type ChatRole = "user" | "assistant" | "system";
+export type ChatMessageStatus = "complete" | "streaming" | "error";
+
+export type ChatActionStatus = "executed" | "pending" | "confirmed" | "cancelled" | "failed";
+
+export interface ChatAction {
+  tool: string;
+  args: Record<string, unknown>;
+  status: ChatActionStatus;
+  resultMessage?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+  status: ChatMessageStatus;
+  /** Present only when status is "error" - shown inline with a Retry action. */
+  errorMessage?: string;
+  /** Present when the assistant proposed or performed a tool action alongside its reply. */
+  action?: ChatAction;
+  createdAt: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  pinned: boolean;
+  messages: ChatMessage[];
+  createdAt: string;
+  updatedAt: string;
 }

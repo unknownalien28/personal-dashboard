@@ -3,6 +3,7 @@ import { Plus, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AskAlienButton } from "@/features/ai/components/AskAlienButton";
 import { useTasksStore } from "@/features/tasks/tasks-store";
 import { TaskItem } from "@/features/tasks/components/TaskItem";
 import { TaskForm, type TaskFormValues } from "@/features/tasks/components/TaskForm";
@@ -63,9 +64,12 @@ export function TasksPage() {
     <div className="flex flex-col gap-5 pb-24 md:pb-0">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Tasks</h2>
-        <Button variant="primary" onClick={openCreateModal} className="hidden md:inline-flex">
-          <Plus className="h-4 w-4" /> New task
-        </Button>
+        <div className="hidden md:flex items-center gap-2">
+          <AskAlienButton label="Ask Alien" prompt="What should I work on first?" module="tasks" />
+          <Button variant="primary" onClick={openCreateModal}>
+            <Plus className="h-4 w-4" /> New task
+          </Button>
+        </div>
       </div>
 
       {tasks.length > 0 && <ProgressSummary tasks={tasks} />}

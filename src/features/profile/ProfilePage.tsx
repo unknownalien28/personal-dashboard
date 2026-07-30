@@ -4,6 +4,7 @@ import { SettingsNav, type SettingsSection } from "@/features/profile/components
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { AppearanceSection } from "@/features/profile/components/AppearanceSection";
 import { VisualEffectsSection } from "@/features/profile/components/VisualEffectsSection";
+import { AISection } from "@/features/profile/components/AISection";
 import { NotificationsSection } from "@/features/profile/components/NotificationsSection";
 import { PreferencesSection } from "@/features/profile/components/PreferencesSection";
 import { DataManagementSection } from "@/features/profile/components/DataManagementSection";
@@ -13,6 +14,7 @@ const sectionLabels: Record<SettingsSection, string> = {
   profile: "Profile",
   appearance: "Appearance",
   visualEffects: "Visual Effects",
+  ai: "AI",
   notifications: "Notifications",
   preferences: "Preferences",
   data: "Data Management",
@@ -27,6 +29,8 @@ function renderSection(section: SettingsSection) {
       return <AppearanceSection />;
     case "visualEffects":
       return <VisualEffectsSection />;
+    case "ai":
+      return <AISection />;
     case "notifications":
       return <NotificationsSection />;
     case "preferences":

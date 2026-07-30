@@ -14,6 +14,7 @@ import { GoalDetailsPanel } from "@/features/goals/components/GoalDetailsPanel";
 import { useGoalDragStatus } from "@/features/goals/useGoalDragStatus";
 import { computeGoalStats } from "@/features/goals/goal-stats";
 import type { Goal, GoalStatus, Priority } from "@/types/models";
+import { AskAlienButton } from "@/features/ai/components/AskAlienButton";
 
 const GoalStatsPanel = lazy(() =>
   import("@/features/goals/components/GoalStatsPanel").then((m) => ({ default: m.GoalStatsPanel }))
@@ -224,6 +225,12 @@ export function GoalsPage() {
               ]}
             />
             {(view === "grid" || view === "list") && <GoalSortSelect value={sort} onChange={setSort} />}
+            <AskAlienButton
+              label="Suggest Next Milestone"
+              prompt="Suggest the next milestone I should set for my goals."
+              module="goals"
+              className="hidden md:inline-flex"
+            />
             <Button variant="primary" size="sm" onClick={openCreate} className="hidden md:inline-flex">
               <Plus className="h-4 w-4" /> New goal
             </Button>

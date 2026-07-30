@@ -34,6 +34,7 @@ import { TimeGridView } from "@/features/calendar/components/TimeGridView";
 import { AgendaView } from "@/features/calendar/components/AgendaView";
 import { EventDetailsPanel } from "@/features/calendar/components/EventDetailsPanel";
 import type { Occurrence } from "@/features/calendar/occurrences";
+import { AskAlienButton } from "@/features/ai/components/AskAlienButton";
 
 type PanelMode = "dayList" | "create" | "edit";
 type CalendarSort = "date" | "created" | "title";
@@ -346,6 +347,13 @@ export function CalendarPage() {
               <BellRing className="h-4 w-4 shrink-0" /> Enable reminder notifications
             </button>
           )}
+
+          <AskAlienButton
+            label="Optimize Schedule"
+            prompt="Look at my calendar and suggest how to optimize my schedule, including any free time or conflicts."
+            module="calendar"
+            className="hidden md:flex w-full justify-center"
+          />
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col gap-4 md:overflow-y-auto">

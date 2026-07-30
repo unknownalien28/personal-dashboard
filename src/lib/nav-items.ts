@@ -26,6 +26,6 @@ export const navItems: NavItem[] = [
   { to: "/goals", label: "Goals & Habits", icon: Target },
   { to: "/finance", label: "Finance", icon: Wallet },
   { to: "/content", label: "Content Planner", icon: Megaphone },
-  { to: "/ai", label: "AI Assistant", icon: Bot },
+  { to: "/ai", label: "Alien Assistant", icon: Bot },
   { to: "/profile", label: "Profile", icon: User },
 ];

@@ -8,6 +8,7 @@ import { NoteCard, type NoteCardMode } from "@/features/notes/components/NoteCar
 import { NoteEditor } from "@/features/notes/components/NoteEditor";
 import { NoteFilterSidebar, type NoteFilter } from "@/features/notes/components/NoteFilterSidebar";
 import { NoteSortSelect, type NoteSort } from "@/features/notes/components/NoteSortSelect";
+import { AskAlienButton } from "@/features/ai/components/AskAlienButton";
 import type { Note } from "@/types/models";
 
 interface NavState {
@@ -207,9 +208,12 @@ export function NotesPage() {
     <div className="flex flex-col gap-5 pb-24 md:pb-0 md:h-[calc(100vh-8.5rem)]">
       <div className="hidden md:flex items-center justify-between">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Notes</h2>
-        <Button variant="primary" onClick={handleCreate}>
-          <Plus className="h-4 w-4" /> New note
-        </Button>
+        <div className="flex items-center gap-2">
+          <AskAlienButton label="Summarize" prompt="Summarize my notes" module="notes" />
+          <Button variant="primary" onClick={handleCreate}>
+            <Plus className="h-4 w-4" /> New note
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row md:flex-1 gap-5 md:min-h-0">
