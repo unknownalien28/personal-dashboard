@@ -86,8 +86,8 @@ export function AIPage() {
         <div
           className={
             activeConversation
-              ? "hidden md:flex md:w-72 md:shrink-0 md:border-r md:border-[var(--color-border)] glass-panel"
-              : "flex flex-1 md:flex-none md:w-72 md:shrink-0 md:border-r md:border-[var(--color-border)] glass-panel"
+              ? "hidden md:flex md:w-72 md:min-w-72 md:shrink-0 md:overflow-hidden md:border-r md:border-[var(--color-border)] glass-panel"
+              : "flex flex-1 min-w-0 md:flex-none md:w-72 md:min-w-72 md:shrink-0 md:overflow-hidden md:border-r md:border-[var(--color-border)] glass-panel"
           }
         >
           <ConversationSidebar
@@ -104,15 +104,15 @@ export function AIPage() {
         {/* Chat: full-screen overlay on mobile once a conversation is open. */}
         <div className={activeConversation ? "flex flex-1 min-w-0 flex-col glass-panel md:bg-transparent" : "hidden md:flex flex-1 min-w-0 flex-col"}>
           {activeConversation && (
-            <div className="md:hidden flex items-center gap-2 px-3 h-12 border-b border-[var(--color-border)] shrink-0">
+            <div className="md:hidden flex items-center gap-2 px-3 h-12 border-b border-[var(--color-border)] shrink-0 min-w-0">
               <button
                 type="button"
                 onClick={() => setActiveConversation(null)}
-                className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
-              <span className="text-sm font-medium truncate">{activeConversation.title}</span>
+              <span className="flex-1 min-w-0 truncate text-sm font-medium">{activeConversation.title}</span>
             </div>
           )}
 

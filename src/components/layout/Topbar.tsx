@@ -5,6 +5,7 @@ import { navItems } from "@/lib/nav-items";
 import { useThemeStore } from "@/lib/theme-store";
 import { useResolvedDarkMode } from "@/hooks/useApplyTheme";
 import { GlobalSearch } from "@/features/ai/components/GlobalSearch";
+import { UserMenu } from "./UserMenu";
 
 export function Topbar() {
   const location = useLocation();
@@ -68,6 +69,8 @@ export function Topbar() {
             >
               <Settings className="h-[18px] w-[18px]" />
             </Link>
+
+            <UserMenu />
           </div>
         </>
       )}

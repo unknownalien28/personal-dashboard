@@ -51,7 +51,7 @@ export function ConversationSidebar({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full min-w-0">
       <div className="p-3 flex flex-col gap-2.5 shrink-0">
         <Button variant="primary" onClick={onNewChat} className="w-full justify-center">
           <Plus className="h-4 w-4" /> New chat

@@ -1,0 +1,746 @@
+// ============================================================================
+// AlienOS — Prisma Schema
+// Phase 9: Backend Foundation
+//
+// Every domain entity belongs to a User (multi-tenant by ownership).
+// Enum values mirror the frontend's src/types/models.ts as closely as
+// Prisma allows, so the API can serialize directly into what the client
+// already expects.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Auth / Users
+// ----------------------------------------------------------------------------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Email verification
+  emailVerified               Boolean   @default(false)
+  emailVerificationTokenHash  String?
+  emailVerificationExpiresAt  DateTime?
+
+  // Forgot/reset password
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
+
+  profile              Profile?
+  appearanceSettings    AppearanceSettings?
+  visualEffectsSettings VisualEffectsSettings?
+  notificationSettings  NotificationSettings?
+  preferenceSettings    PreferenceSettings?
+  aiSettings            AISettings?
+
+  sessions      Session[]
+  apiKeys       ApiKey[]
+  notifications Notification[]
+
+  tasks         Task[]
+  notes         Note[]
+  calendarEvents CalendarEvent[]
+  habits        Habit[]
+  goals         Goal[]
+
+  accounts      Account[]
+  transactions  Transaction[]
+  budgets       Budget[]
+  bills         Bill[]
+  savingsGoals  SavingsGoal[]
+
+  contentPosts       ContentPost[]
+  workspaceDocuments WorkspaceDocument[]
+  conversations      Conversation[]
+  attachments        Attachment[]
+
+  @@map("users")
+}
+
+/// Refresh-token sessions. One row per active login/device.
+model Session {
+  id               String    @id @default(uuid())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ipAddress        String?
+  revokedAt        DateTime?
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Personal API keys for programmatic access (separate from browser-only AI provider keys).
+model ApiKey {
+  id         String    @id @default(uuid())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  name       String
+  keyHash    String    @unique
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model Profile {
+  id            String  @id @default(uuid())
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String  @unique
+  name          String  @default("")
+  role          String  @default("")
+  avatarColor   String  @default("")
+  avatarDataUrl String?
+  email         String  @default("")
+  bio           String  @default("")
+  timezone      String  @default("UTC")
+  language      String  @default("en")
+
+  @@map("profiles")
+}
+
+// ----------------------------------------------------------------------------
+// Settings (split to mirror the frontend's settings slices 1:1)
+// ----------------------------------------------------------------------------
+
+enum AccentColorKey {
+  alienBlue
+  cosmicPurple
+  auroraGreen
+  solarOrange
+  crimsonRed
+  sakuraPink
+}
+
+enum FontSize {
+  small
+  medium
+  large
+}
+
+model AppearanceSettings {
+  id            String         @id @default(uuid())
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String         @unique
+  accentColor   AccentColorKey @default(alienBlue)
+  fontSize      FontSize       @default(medium)
+  compactMode   Boolean        @default(false)
+  reducedMotion Boolean        @default(false)
+
+  @@map("appearance_settings")
+}
+
+model VisualEffectsSettings {
+  id                    String  @id @default(uuid())
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String  @unique
+  ambientBackground     Boolean @default(true)
+  floatingPlanets       Boolean @default(true)
+  starField             Boolean @default(true)
+  floatingParticles     Boolean @default(true)
+  mouseParallax         Boolean @default(true)
+  glowEffects           Boolean @default(true)
+  glassEffects          Boolean @default(true)
+  reducedVisualEffects  Boolean @default(false)
+
+  @@map("visual_effects_settings")
+}
+
+model NotificationSettings {
+  id                String  @id @default(uuid())
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String  @unique
+  calendarReminders Boolean @default(true)
+  goalReminders     Boolean @default(true)
+  taskReminders     Boolean @default(true)
+
+  @@map("notification_settings")
+}
+
+enum StartupPage {
+  home
+  tasks
+  notes
+  calendar
+  goals
+}
+
+enum NotesDefaultFilter {
+  all
+  pinned
+  archived
+  trash
+}
+
+enum CalendarDefaultView {
+  month
+  week
+  day
+  agenda
+}
+
+enum GoalDefaultView {
+  grid
+  list
+  kanban
+}
+
+model PreferenceSettings {
+  id                  String              @id @default(uuid())
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String              @unique
+  defaultCalendarView CalendarDefaultView @default(month)
+  defaultNotesFilter  NotesDefaultFilter  @default(all)
+  defaultGoalView     GoalDefaultView     @default(grid)
+  startupPage         StartupPage         @default(home)
+
+  @@map("preference_settings")
+}
+
+enum AIProviderKey {
+  demo
+  openai
+  anthropic
+  gemini
+  ollama
+}
+
+/// NOTE: apiKey is intentionally NOT stored server-side in Phase 9 — the
+/// frontend keeps provider API keys local to the browser. This row only
+/// persists the non-secret preferences. See AI PREPARATION section of the
+/// phase brief: providers are not implemented yet.
+model AISettings {
+  id         String        @id @default(uuid())
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String        @unique
+  provider   AIProviderKey @default(demo)
+  model      String        @default("")
+  streaming  Boolean       @default(true)
+  temperature Float        @default(0.7)
+  maxTokens  Int           @default(1024)
+
+  @@map("ai_settings")
+}
+
+// ----------------------------------------------------------------------------
+// Tasks
+// ----------------------------------------------------------------------------
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+model Task {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  title     String
+  category  String    @default("")
+  priority  Priority  @default(medium)
+  dueDate   DateTime?
+  completed Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("tasks")
+}
+
+// ----------------------------------------------------------------------------
+// Notes
+// ----------------------------------------------------------------------------
+
+enum NoteColor {
+  default
+  yellow
+  blue
+  green
+  pink
+  purple
+}
+
+model Note {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  title     String
+  content   String    @default("")
+  tags      String[]  @default([])
+  pinned    Boolean   @default(false)
+  archived  Boolean   @default(false)
+  deletedAt DateTime?
+  color     NoteColor @default(default)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId])
+  @@map("notes")
+}
+
+// ----------------------------------------------------------------------------
+// Calendar
+// ----------------------------------------------------------------------------
+
+enum EventColor {
+  default
+  yellow
+  blue
+  green
+  pink
+  purple
+}
+
+enum RepeatOption {
+  none
+  daily
+  weekly
+  monthly
+  yearly
+}
+
+enum ReminderOption {
+  none
+  atTime
+  min5
+  min15
+  min30
+  hour1
+  day1
+}
+
+model CalendarEvent {
+  id          String         @id @default(uuid())
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  title       String
+  description String         @default("")
+  startDate   DateTime
+  endDate     DateTime
+  startTime   String?
+  endTime     String?
+  allDay      Boolean        @default(false)
+  color       EventColor     @default(default)
+  category    String         @default("")
+  location    String         @default("")
+  reminder    ReminderOption @default(none)
+  repeat      RepeatOption   @default(none)
+  archived    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([userId])
+  @@map("calendar_events")
+}
+
+model Habit {
+  id              String   @id @default(uuid())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  name            String
+  streak          Int      @default(0)
+  bestStreak      Int      @default(0)
+  completedDates  DateTime[] @default([])
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@map("habits")
+}
+
+// ----------------------------------------------------------------------------
+// Goals
+// ----------------------------------------------------------------------------
+
+enum GoalStatus {
+  notStarted
+  inProgress
+  completed
+  onHold
+}
+
+model Milestone {
+  id        String   @id @default(uuid())
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  goalId    String
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([goalId])
+  @@map("milestones")
+}
+
+model Goal {
+  id             String      @id @default(uuid())
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  title          String
+  description    String      @default("")
+  category       String      @default("")
+  priority       Priority    @default(medium)
+  targetDate     DateTime?
+  progress       Int         @default(0)
+  manualProgress Boolean     @default(false)
+  status         GoalStatus  @default(notStarted)
+  color          NoteColor   @default(default)
+  icon           String      @default("")
+  notes          String      @default("")
+  milestones     Milestone[]
+  archived       Boolean     @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@map("goals")
+}
+
+// ----------------------------------------------------------------------------
+// Finance
+// ----------------------------------------------------------------------------
+
+enum AccountType {
+  cash
+  bank
+  savings
+  creditCard
+  investment
+  digitalWallet
+  custom
+}
+
+model Account {
+  id              String        @id @default(uuid())
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  name            String
+  type            AccountType   @default(cash)
+  color           NoteColor     @default(default)
+  icon            String        @default("")
+  currency        String        @default("NGN")
+  balance         Decimal       @default(0) @db.Decimal(18, 2)
+  openingBalance  Decimal       @default(0) @db.Decimal(18, 2)
+  notes           String        @default("")
+  archived        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  transactions       Transaction[] @relation("AccountTransactions")
+  transfersIn        Transaction[] @relation("AccountTransfersIn")
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+enum TransactionType {
+  income
+  expense
+  transfer
+}
+
+model Transaction {
+  id                  String          @id @default(uuid())
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String
+  type                TransactionType
+  amount              Decimal         @db.Decimal(18, 2)
+  category            String          @default("")
+  account             Account         @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  accountId           String
+  transferToAccount   Account?        @relation("AccountTransfersIn", fields: [transferToAccountId], references: [id], onDelete: SetNull)
+  transferToAccountId String?
+  date                DateTime
+  time                String?
+  notes               String          @default("")
+  tags                String[]        @default([])
+  hasReceipt          Boolean         @default(false)
+  recurring           Boolean         @default(false)
+  favorite            Boolean         @default(false)
+  archived            Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([accountId])
+  @@map("transactions")
+}
+
+enum BudgetPeriod {
+  weekly
+  monthly
+  yearly
+}
+
+model Budget {
+  id        String       @id @default(uuid())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  category  String
+  amount    Decimal      @db.Decimal(18, 2)
+  period    BudgetPeriod @default(monthly)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([userId])
+  @@map("budgets")
+}
+
+model Bill {
+  id         String         @id @default(uuid())
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  name       String
+  category   String         @default("")
+  amount     Decimal        @db.Decimal(18, 2)
+  dueDate    DateTime
+  reminder   ReminderOption @default(none)
+  autoRepeat RepeatOption   @default(none)
+  paid       Boolean        @default(false)
+  archived   Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([userId])
+  @@map("bills")
+}
+
+model SavingsContribution {
+  id            String      @id @default(uuid())
+  savingsGoal   SavingsGoal @relation(fields: [savingsGoalId], references: [id], onDelete: Cascade)
+  savingsGoalId String
+  amount        Decimal     @db.Decimal(18, 2)
+  date          DateTime    @default(now())
+
+  @@index([savingsGoalId])
+  @@map("savings_contributions")
+}
+
+model SavingsGoal {
+  id            String                @id @default(uuid())
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  title         String
+  targetAmount  Decimal               @db.Decimal(18, 2)
+  currentAmount Decimal               @default(0) @db.Decimal(18, 2)
+  deadline      DateTime?
+  color         NoteColor             @default(default)
+  icon          String                @default("")
+  contributions SavingsContribution[]
+  archived      Boolean               @default(false)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([userId])
+  @@map("savings_goals")
+}
+
+// ----------------------------------------------------------------------------
+// Content (Alien Footy / social media pipeline)
+// ----------------------------------------------------------------------------
+
+enum ContentPlatform {
+  x
+  facebook
+  instagram
+  linkedin
+  tiktok
+  youtube
+  threads
+  telegram
+  whatsapp
+  blog
+  custom
+}
+
+enum ContentStatus {
+  idea
+  researching
+  writing
+  editing
+  scheduled
+  published
+  archived
+}
+
+model ContentPost {
+  id                  String          @id @default(uuid())
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String
+  title               String
+  description         String          @default("")
+  body                String          @default("")
+  platform            ContentPlatform @default(x)
+  customPlatformName  String          @default("")
+  hashtags            String[]        @default([])
+  mentions            String[]        @default([])
+  status              ContentStatus   @default(idea)
+  priority            Priority        @default(medium)
+  category            String          @default("")
+  campaign            String          @default("")
+  tags                String[]        @default([])
+  favorite            Boolean         @default(false)
+  aiGenerated         Boolean         @default(false)
+  publishDate         DateTime?
+  publishTime         String?
+  notes               String          @default("")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([userId])
+  @@map("content_posts")
+}
+
+// ----------------------------------------------------------------------------
+// Workspace (generic documents — e.g. thesis decks, scripts, CVs)
+// ----------------------------------------------------------------------------
+
+model WorkspaceDocument {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  title      String
+  content    String   @default("")
+  mimeType   String   @default("text/markdown")
+  folder     String   @default("")
+  tags       String[] @default([])
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId])
+  @@map("workspace_documents")
+}
+
+// ----------------------------------------------------------------------------
+// Attachments (generic file references — notes, workspace docs, avatars)
+// ----------------------------------------------------------------------------
+
+enum AttachmentParent {
+  note
+  workspaceDocument
+}
+
+model Attachment {
+  id         String            @id @default(uuid())
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  parentType AttachmentParent
+  noteId     String?
+  note       Note?             @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  workspaceDocumentId String?
+  workspaceDocument   WorkspaceDocument? @relation(fields: [workspaceDocumentId], references: [id], onDelete: Cascade)
+  filename   String
+  mimeType   String
+  size       Int
+  storageKey String
+  url        String
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([noteId])
+  @@index([workspaceDocumentId])
+  @@map("attachments")
+}
+
+// ----------------------------------------------------------------------------
+// AI Conversations
+// ----------------------------------------------------------------------------
+
+enum ChatRole {
+  user
+  assistant
+  system
+}
+
+enum ChatMessageStatus {
+  complete
+  streaming
+  error
+}
+
+enum ChatActionStatus {
+  executed
+  pending
+  confirmed
+  cancelled
+  failed
+}
+
+model ChatMessage {
+  id             String            @id @default(uuid())
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  role           ChatRole
+  content        String
+  status         ChatMessageStatus @default(complete)
+  errorMessage   String?
+  actionTool     String?
+  actionArgs     Json?
+  actionStatus   ChatActionStatus?
+  actionResult   String?
+  createdAt      DateTime          @default(now())
+
+  @@index([conversationId])
+  @@map("chat_messages")
+}
+
+model Conversation {
+  id        String        @id @default(uuid())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  title     String        @default("New conversation")
+  pinned    Boolean       @default(false)
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("conversations")
+}
+
+// ----------------------------------------------------------------------------
+// Notifications (system-generated, e.g. reminders)
+// ----------------------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  title     String
+  body      String   @default("")
+  category  String   @default("general")
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("notifications")
+}
