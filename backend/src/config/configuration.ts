@@ -33,10 +33,19 @@ export interface AppConfig {
     from: string;
   };
   ai: {
+    defaultProvider: string;
     openaiApiKey?: string;
+    openaiModel: string;
     anthropicApiKey?: string;
+    anthropicModel: string;
     geminiApiKey?: string;
+    geminiModel: string;
     ollamaBaseUrl?: string;
+    ollamaModel: string;
+    requestTimeoutMs: number;
+    maxRetries: number;
+    maxToolIterations: number;
+    maxHistoryMessages: number;
   };
   storage: {
     driver: "local" | "s3";
@@ -89,10 +98,26 @@ export default (): AppConfig => ({
     from: process.env.SMTP_FROM ?? "AlienOS <no-reply@alienos.dev>",
   },
   ai: {
+    // Gemini is the primary/default provider (Phase 2). "AI_DEFAULT_PROVIDER"
+    // lets an operator override the fallback provider without a redeploy.
+    defaultProvider: process.env.AI_DEFAULT_PROVIDER || "gemini",
     openaiApiKey: process.env.AI_OPENAI_API_KEY || undefined,
+    openaiModel: process.env.AI_OPENAI_MODEL || "gpt-4.1-mini",
     anthropicApiKey: process.env.AI_ANTHROPIC_API_KEY || undefined,
-    geminiApiKey: process.env.AI_GEMINI_API_KEY || undefined,
-    ollamaBaseUrl: process.env.AI_OLLAMA_BASE_URL || undefined,
+    anthropicModel: process.env.AI_ANTHROPIC_MODEL || "claude-sonnet-4-5",
+    // Primary provider. Per Phase 2: read from GEMINI_API_KEY. AI_GEMINI_API_KEY
+    // is kept as a fallback for anyone who set it up during Phase 1/2 planning.
+    geminiApiKey: process.env.GEMINI_API_KEY || process.env.AI_GEMINI_API_KEY || undefined,
+    geminiModel: process.env.AI_GEMINI_MODEL || "gemini-2.5-flash",
+    // Ollama is the official offline/local provider. Read plain OLLAMA_*
+    // names first (per the hybrid-architecture spec); AI_OLLAMA_* is kept
+    // as a fallback for anyone who set that up during earlier phases.
+    ollamaBaseUrl: process.env.OLLAMA_BASE_URL || process.env.AI_OLLAMA_BASE_URL || "http://localhost:11434",
+    ollamaModel: process.env.OLLAMA_MODEL || process.env.AI_OLLAMA_MODEL || "llama3.2:3b",
+    requestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS ?? "30000", 10),
+    maxRetries: parseInt(process.env.AI_MAX_RETRIES ?? "2", 10),
+    maxToolIterations: parseInt(process.env.AI_MAX_TOOL_ITERATIONS ?? "4", 10),
+    maxHistoryMessages: parseInt(process.env.AI_MAX_HISTORY_MESSAGES ?? "24", 10),
   },
   storage: {
     driver: (process.env.STORAGE_DRIVER as "local" | "s3") ?? "local",

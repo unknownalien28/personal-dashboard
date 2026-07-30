@@ -90,3 +90,71 @@ export const api = {
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>(path, { ...options, method: "PATCH", body }),
   delete: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: "DELETE" }),
 };
+
+/**
+ * Consumes a Server-Sent Events endpoint that requires a POST body and
+ * bearer auth (so the standard `EventSource` API doesn't apply — it only
+ * supports unauthenticated GETs). Used by the AI chat streaming endpoint.
+ * Reuses the same single-flight token-refresh logic as `request()` above.
+ */
+export async function* streamSse<T>(path: string, body: unknown, options: { signal?: AbortSignal } = {}): AsyncGenerator<T> {
+  const attempt = async (isRetry: boolean): Promise<Response> => {
+    const token = getAccessToken();
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: options.signal,
+    });
+
+    if (response.status === 401 && !isRetry) {
+      refreshPromise ??= doRefresh().finally(() => {
+        refreshPromise = null;
+      });
+      const newToken = await refreshPromise;
+      if (newToken) return attempt(true);
+      onUnauthorized();
+      throw new ApiError(401, "Session expired. Please log in again.");
+    }
+
+    if (!response.ok || !response.body) {
+      const text = await response.text().catch(() => "");
+      throw new ApiError(response.status, text || response.statusText);
+    }
+
+    return response;
+  };
+
+  const response = await attempt(false);
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let separatorIndex: number;
+    while ((separatorIndex = buffer.indexOf("\n\n")) >= 0) {
+      const rawEvent = buffer.slice(0, separatorIndex);
+      buffer = buffer.slice(separatorIndex + 2);
+
+      const dataLines = rawEvent
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trim());
+      if (dataLines.length === 0) continue;
+
+      try {
+        yield JSON.parse(dataLines.join("\n")) as T;
+      } catch {
+        // Ignore malformed/keep-alive frames rather than aborting the whole stream.
+      }
+    }
+  }
+}

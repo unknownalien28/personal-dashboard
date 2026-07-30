@@ -87,6 +87,28 @@ export class UsersService {
     });
   }
 
+  /**
+   * Used by the AI orchestrator to resolve the user's preferred provider
+   * without pulling the full `me()` payload. Falls back to schema defaults
+   * (enabled=true, provider=gemini) if the row somehow doesn't exist yet —
+   * it normally does, created at signup (see AuthService.register).
+   */
+  async getAISettings(userId: string) {
+    const settings = await this.prisma.aISettings.findUnique({ where: { userId } });
+    return (
+      settings ?? {
+        id: "",
+        userId,
+        enabled: true,
+        provider: "auto" as const,
+        model: "",
+        streaming: true,
+        temperature: 0.7,
+        maxTokens: 1024,
+      }
+    );
+  }
+
   /** Uploads an avatar image and points the profile's avatarDataUrl at its storage URL. */
   async setAvatar(userId: string, filename: string, mimeType: string, buffer: Buffer) {
     const key = this.storageService.buildKey(`users/${userId}/avatar`, filename, buffer);

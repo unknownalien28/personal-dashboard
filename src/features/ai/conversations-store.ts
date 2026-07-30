@@ -23,6 +23,8 @@ interface ConversationsState {
   /** Removes every message from `messageId` onward - used before regenerating/retrying a response. */
   truncateFrom: (conversationId: string, messageId: string) => void;
   setStatus: (conversationId: string, messageId: string, status: ChatMessageStatus) => void;
+  /** Records the authoritative backend Conversation id once the first backend reply comes back — see chat-service.ts. */
+  setBackendId: (conversationId: string, backendId: string) => void;
 }
 
 function makeConversation(title: string): Conversation {
@@ -133,6 +135,11 @@ export const useConversationsStore = create<ConversationsState>()(
       setStatus: (conversationId, messageId, status) => {
         get().updateMessage(conversationId, messageId, { status });
       },
+
+      setBackendId: (conversationId, backendId) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) => (c.id === conversationId ? { ...c, backendId } : c)),
+        })),
     }),
     {
       name: `${STORAGE_PREFIX}ai-conversations`,

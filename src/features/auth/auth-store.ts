@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api, configureApiClient, ApiError } from "@/lib/api/client";
 import { useProfileStore } from "@/features/profile/profile-store";
+import { useSettingsStore } from "@/features/profile/settings-store";
 
 export interface AuthUser {
   id: string;
@@ -27,6 +28,16 @@ interface BackendProfile {
   language?: string;
 }
 
+/** Nested AISettings sub-object as returned by GET /users/me — see backend AISettings model. */
+interface BackendAISettings {
+  enabled: boolean;
+  provider: "auto" | "demo" | "openai" | "anthropic" | "gemini" | "ollama";
+  model: string;
+  streaming: boolean;
+  temperature: number;
+  maxTokens: number;
+}
+
 interface ProfileResponse {
   id: string;
   email: string;
@@ -34,6 +45,7 @@ interface ProfileResponse {
   emailVerified: boolean;
   createdAt: string;
   profile?: BackendProfile | null;
+  aiSettings?: BackendAISettings | null;
 }
 
 interface AuthState {
@@ -105,6 +117,29 @@ function syncProfileFromBackend(profile?: BackendProfile | null): void {
   }
 }
 
+/**
+ * Seeds the local AI-settings cache (`useSettingsStore.ai`) from the
+ * backend's AISettings — the backend is the source of truth for which AI
+ * provider is active (Gemini/Auto/etc.), never the browser. Called once
+ * per login/register/hydrate, same pattern as syncProfileFromBackend.
+ * Uses `{ sync: false }` so this doesn't immediately PATCH the value it
+ * just received right back to the server.
+ */
+function syncAISettingsFromBackend(aiSettings?: BackendAISettings | null): void {
+  if (!aiSettings) return;
+  useSettingsStore.getState().updateAISettings(
+    {
+      enabled: aiSettings.enabled,
+      provider: aiSettings.provider,
+      model: aiSettings.model,
+      streaming: aiSettings.streaming,
+      temperature: aiSettings.temperature,
+      maxTokens: aiSettings.maxTokens,
+    },
+    { sync: false },
+  );
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   accessToken: null,
@@ -124,7 +159,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: toAuthUser(result.user), accessToken: result.tokens.accessToken, isLoading: false });
       // Register's response doesn't include the nested profile — fetch it once, now.
       const full = await api.get<ProfileResponse>("/users/me").catch(() => null);
-      if (full) syncProfileFromBackend(full.profile);
+      if (full) {
+        syncProfileFromBackend(full.profile);
+        syncAISettingsFromBackend(full.aiSettings);
+      }
     } catch (err) {
       set({ isLoading: false, error: errorMessage(err) });
       throw err;
@@ -142,7 +180,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       storeRefreshToken(result.tokens.refreshToken, rememberMe);
       set({ user: toAuthUser(result.user), accessToken: result.tokens.accessToken, isLoading: false });
       const full = await api.get<ProfileResponse>("/users/me").catch(() => null);
-      if (full) syncProfileFromBackend(full.profile);
+      if (full) {
+        syncProfileFromBackend(full.profile);
+        syncAISettingsFromBackend(full.aiSettings);
+      }
     } catch (err) {
       set({ isLoading: false, error: errorMessage(err) });
       throw err;
@@ -177,6 +218,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const profile = await api.get<ProfileResponse>("/users/me");
       set({ user: toAuthUser(profile), isInitialized: true });
       syncProfileFromBackend(profile.profile);
+      syncAISettingsFromBackend(profile.aiSettings);
     } catch {
       clearStoredRefreshToken();
       set({ user: null, accessToken: null, isInitialized: true });

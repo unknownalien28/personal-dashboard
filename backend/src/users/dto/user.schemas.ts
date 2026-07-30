@@ -48,7 +48,8 @@ export const updatePreferenceSettingsSchema = z.object({
 export type UpdatePreferenceSettingsDto = z.infer<typeof updatePreferenceSettingsSchema>;
 
 export const updateAISettingsSchema = z.object({
-  provider: z.enum(["demo", "openai", "anthropic", "gemini", "ollama"]).optional(),
+  enabled: z.boolean().optional(),
+  provider: z.enum(["auto", "demo", "openai", "anthropic", "gemini", "ollama"]).optional(),
   model: z.string().max(120).optional(),
   streaming: z.boolean().optional(),
   temperature: z.number().min(0).max(2).optional(),

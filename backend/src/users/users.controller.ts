@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Patch, Post } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { AuthenticatedUser } from "../auth/types/authenticated-user.interface";
@@ -69,6 +69,11 @@ export class UsersController {
   }
 
   @Patch("me/settings/ai")
+  @ApiOperation({
+    summary: "Update the current user's AI Settings",
+    description:
+      "Controls whether Alien is enabled at all, which provider is preferred (Gemini by default for new accounts), and default model/temperature/maxTokens/streaming behavior. The AI orchestration layer reads this on every request and falls back gracefully if the preferred provider isn't configured.",
+  })
   updateAISettings(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(updateAISettingsSchema)) dto: UpdateAISettingsDto,

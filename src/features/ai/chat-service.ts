@@ -1,105 +1,178 @@
+import { api, streamSse, ApiError } from "@/lib/api/client";
 import { useConversationsStore } from "@/features/ai/conversations-store";
 import { useSettingsStore } from "@/features/profile/settings-store";
-import { getProvider } from "@/features/ai/providers/registry";
-import { buildContext, type ModuleKey } from "@/features/ai/context-engine";
-import { parseActionBlock, stripActionBlock, stageAction, confirmAction, cancelAction } from "@/features/ai/action-protocol";
-import type { ProviderMessage } from "@/features/ai/providers/types";
-import type { ChatMessage } from "@/types/models";
+import { buildModuleHints, type ModuleKey } from "@/features/ai/context-engine";
+import type { ChatAction, ChatMessage } from "@/types/models";
+
+/**
+ * Chat transport layer. This is the ONLY place in the frontend that talks
+ * to AI — and it talks exclusively to AlienOS's own backend (`/ai/messages`
+ * and `/ai/messages/stream`), never to Gemini/OpenAI/Anthropic/Ollama
+ * directly. Provider selection, API keys, context injection, conversation
+ * memory, tool execution, retries, and fallback all live server-side (see
+ * backend/src/ai/orchestrator.service.ts) — this file just renders
+ * whatever the backend decides into the local conversation store.
+ */
 
 /** One AbortController per in-flight assistant message, keyed by message id - not persisted, purely runtime. */
 const activeStreams = new Map<string, AbortController>();
 
-const ACTION_MARKER = "```alienos-action";
-
-const SYSTEM_PROMPT = `You are Alien Assistant, the central intelligence layer of AlienOS - a personal productivity app with Tasks, Notes, Calendar, Goals, Finance, and Content Planner modules. Be concise, helpful, and friendly. Format responses in Markdown when useful (lists, code blocks, bold).
-
-You may be given a "Workspace context" block below with real data from the modules relevant to the user's request - use it to ground your answer instead of guessing, and never mention data from a module that wasn't included in that context.
-
-When the user's request requires *changing* something (creating, updating, completing, or deleting a task/note/event/goal/transaction), end your reply with exactly one fenced block in this exact form, on its own, after your normal answer:
-
-${ACTION_MARKER}
-{"tool": "<toolName>", "args": { ... }}
-\`\`\`
-
-Available tools: createTask({title, category?, priority?, dueDate?}), updateTask({id or title, ...fields}), completeTask({id or title}), deleteTask({id or title}), createNote({title?, content}), updateNote({id or title, ...fields}), deleteNote({id or title}), createEvent({title, description, startDate, endDate, startTime, endTime, allDay, color, category, location, reminder, repeat}), updateEvent({id or title, ...fields}), deleteEvent({id or title}), createGoal({title, description, category, priority, targetDate, status, color, icon, notes}), updateGoal({id or title, ...fields}), deleteGoal({id or title}), createTransaction({type, amount, category, accountId, ...}), deleteTransaction({id}), createContentPost({title, description?, body?, platform, hashtags?, mentions?, status?, priority?, category?, campaign?, tags?, publishDate?, publishTime?, notes?}), updateContentPost({id or title, ...fields}), deleteContentPost({id or title}).
-
-Only include an action block when the user actually asked for a change - never invent one for a purely informational question. Delete* actions are never executed automatically; the app always asks the user to confirm first, so it's safe to propose them when asked.`;
-
-function toProviderMessages(messages: ChatMessage[], contextText: string): ProviderMessage[] {
-  const system: ProviderMessage[] = [{ role: "system", content: SYSTEM_PROMPT }];
-  // Privacy: only sent to the provider when the context engine actually detected relevant modules.
-  if (contextText) system.push({ role: "system", content: `Workspace context (only what's relevant to this request):\n\n${contextText}` });
-  return [
-    ...system,
-    ...messages.filter((m) => m.status !== "error").map((m) => ({ role: m.role, content: m.content }) satisfies ProviderMessage),
-  ];
+interface BackendChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  status: "complete" | "streaming" | "error";
+  createdAt: string;
 }
 
-/** Runs a provider request and streams/settles the result into the given assistant message. */
-async function runAssistantReply(
-  conversationId: string,
-  assistantMessageId: string,
-  history: ChatMessage[],
-  forceModules: ModuleKey[] = []
-) {
+interface SendMessageResponse {
+  conversationId: string;
+  message: BackendChatMessage;
+  provider: string;
+  fallbackNote?: string;
+  actions: Array<{ tool: string; args: Record<string, unknown>; status: "executed" | "failed"; resultMessage: string }>;
+}
+
+type StreamEvent =
+  | { type: "token"; delta: string }
+  | { type: "tool_call"; tool: string; args: Record<string, unknown> }
+  | { type: "tool_result"; tool: string; success: boolean; message: string }
+  | { type: "done"; conversationId: string; provider: string; fallbackNote?: string }
+  | { type: "error"; message: string };
+
+function lastActionFrom(actions: SendMessageResponse["actions"]): ChatAction | undefined {
+  const last = actions[actions.length - 1];
+  if (!last) return undefined;
+  return { tool: last.tool, args: last.args, status: last.status, resultMessage: last.resultMessage };
+}
+
+/** Resolves the id this conversation should be sent to the backend as — its established backendId once known, otherwise undefined (backend creates a fresh conversation and we adopt its id from the response). */
+function backendConversationId(conversationId: string): string | undefined {
+  return useConversationsStore.getState().conversations.find((c) => c.id === conversationId)?.backendId;
+}
+
+function adoptBackendId(conversationId: string, backendId: string): void {
+  const existing = useConversationsStore.getState().conversations.find((c) => c.id === conversationId);
+  if (existing && !existing.backendId) {
+    useConversationsStore.getState().setBackendId(conversationId, backendId);
+  }
+}
+
+/** Runs one backend turn (non-streaming) and settles the assistant message. */
+async function runNonStreaming(conversationId: string, assistantMessageId: string, content: string, moduleHints: string[]): Promise<void> {
   const { updateMessage } = useConversationsStore.getState();
-  const ai = useSettingsStore.getState().ai;
-  const provider = getProvider(ai.provider);
-
-  const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
-  const { text: contextText } = buildContext(lastUserMessage?.content ?? "", forceModules);
-
-  const controller = new AbortController();
-  activeStreams.set(assistantMessageId, controller);
-  updateMessage(conversationId, assistantMessageId, { status: "streaming", content: "" });
-
   try {
-    let streamed = "";
-    const full = await provider.send(
-      {
-        apiKey: ai.apiKey,
-        model: ai.model,
-        messages: toProviderMessages(history, contextText),
-        temperature: ai.temperature,
-        maxTokens: ai.maxTokens,
-        stream: ai.streaming,
-        signal: controller.signal,
-      },
-      ai.streaming
-        ? (chunk) => {
-            streamed += chunk;
-            // Hide a still-forming action block while streaming rather than flashing raw JSON at the user.
-            const markerIndex = streamed.indexOf(ACTION_MARKER);
-            const displayable = markerIndex === -1 ? streamed : streamed.slice(0, markerIndex).trimEnd();
-            updateMessage(conversationId, assistantMessageId, { content: displayable });
-          }
-        : undefined
-    );
+    const response = await api.post<SendMessageResponse>("/ai/messages", {
+      conversationId: backendConversationId(conversationId),
+      content,
+      moduleHints,
+    });
+    adoptBackendId(conversationId, response.conversationId);
 
-    const rawText = ai.streaming ? streamed || full : full;
-    const parsedAction = parseActionBlock(rawText);
-    const displayText = parsedAction ? stripActionBlock(rawText) : rawText;
-
+    const displayText = response.fallbackNote ? `${response.message.content}\n\n_(${response.fallbackNote})_` : response.message.content;
     updateMessage(conversationId, assistantMessageId, {
       content: displayText,
       status: "complete",
-      action: parsedAction ? stageAction(parsedAction) : undefined,
+      action: lastActionFrom(response.actions),
     });
   } catch (err) {
-    if (controller.signal.aborted) {
+    updateMessage(conversationId, assistantMessageId, {
+      status: "error",
+      errorMessage: err instanceof ApiError ? err.message : "Something went wrong reaching Alien.",
+    });
+  }
+}
+
+/** Runs one backend turn via Server-Sent Events, streaming tokens into the assistant message as they arrive. */
+async function runStreaming(
+  conversationId: string,
+  assistantMessageId: string,
+  content: string,
+  moduleHints: string[],
+  signal: AbortSignal,
+): Promise<void> {
+  const { updateMessage } = useConversationsStore.getState();
+  let streamed = "";
+  let pendingToolCall: { tool: string; args: Record<string, unknown> } | undefined;
+  let lastAction: ChatAction | undefined;
+
+  try {
+    for await (const event of streamSse<StreamEvent>(
+      "/ai/messages/stream",
+      { conversationId: backendConversationId(conversationId), content, moduleHints },
+      { signal },
+    )) {
+      if (event.type === "token") {
+        streamed += event.delta;
+        updateMessage(conversationId, assistantMessageId, { content: streamed });
+      } else if (event.type === "tool_call") {
+        pendingToolCall = { tool: event.tool, args: event.args };
+      } else if (event.type === "tool_result") {
+        lastAction = {
+          tool: pendingToolCall?.tool ?? event.tool,
+          args: pendingToolCall?.args ?? {},
+          status: event.success ? "executed" : "failed",
+          resultMessage: event.message,
+        };
+        updateMessage(conversationId, assistantMessageId, { action: lastAction });
+      } else if (event.type === "done") {
+        adoptBackendId(conversationId, event.conversationId);
+        const finalText = event.fallbackNote ? `${streamed}\n\n_(${event.fallbackNote})_` : streamed;
+        updateMessage(conversationId, assistantMessageId, { content: finalText, status: "complete" });
+      } else if (event.type === "error") {
+        updateMessage(conversationId, assistantMessageId, { status: "error", errorMessage: event.message });
+      }
+    }
+  } catch (err) {
+    if (signal.aborted) {
       updateMessage(conversationId, assistantMessageId, { status: "complete" });
     } else {
       updateMessage(conversationId, assistantMessageId, {
         status: "error",
-        errorMessage: err instanceof Error ? err.message : "Something went wrong reaching the AI provider.",
+        errorMessage: err instanceof ApiError ? err.message : "Something went wrong reaching Alien.",
       });
     }
-  } finally {
-    activeStreams.delete(assistantMessageId);
   }
 }
 
-/** Sends a new user message and kicks off the assistant's reply. `forceModules` lets a caller (e.g. an "Ask Alien" button on the Finance page) guarantee that module's context is included even if the wording alone wouldn't trigger it. */
+/** Runs a backend request and streams/settles the result into the given assistant message. */
+async function runAssistantReply(
+  conversationId: string,
+  assistantMessageId: string,
+  history: ChatMessage[],
+  forceModules: ModuleKey[] = [],
+): Promise<void> {
+  const { updateMessage } = useConversationsStore.getState();
+  const { ai } = useSettingsStore.getState();
+
+  const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
+  const content = lastUserMessage?.content ?? "";
+  const { hints } = buildModuleHints(content, forceModules);
+
+  updateMessage(conversationId, assistantMessageId, { status: "streaming", content: "" });
+
+  if (!ai.enabled) {
+    updateMessage(conversationId, assistantMessageId, {
+      status: "error",
+      errorMessage: "AI is turned off in your settings. Enable it under Settings > AI to chat with Alien.",
+    });
+    return;
+  }
+
+  if (ai.streaming) {
+    const controller = new AbortController();
+    activeStreams.set(assistantMessageId, controller);
+    try {
+      await runStreaming(conversationId, assistantMessageId, content, hints, controller.signal);
+    } finally {
+      activeStreams.delete(assistantMessageId);
+    }
+  } else {
+    await runNonStreaming(conversationId, assistantMessageId, content, hints);
+  }
+}
+
+/** Sends a new user message and kicks off the assistant's reply. `forceModules` lets a caller (e.g. an "Ask Alien" button on the Finance page) guarantee that page's context is flagged to the backend even if the wording alone wouldn't trigger it. */
 export async function sendUserMessage(conversationId: string, text: string, forceModules: ModuleKey[] = []): Promise<void> {
   const { addMessage } = useConversationsStore.getState();
   addMessage(conversationId, { role: "user", content: text, status: "complete" });
@@ -109,7 +182,16 @@ export async function sendUserMessage(conversationId: string, text: string, forc
   await runAssistantReply(conversationId, assistantId, history, forceModules);
 }
 
-/** Regenerates an assistant message: drops it and everything after it, then re-asks using the messages before it. */
+/**
+ * Regenerates an assistant message: drops it and everything after it, then
+ * re-asks using the last user message. Note: since the backend persists
+ * conversation history itself, this re-sends that user message as a new
+ * turn rather than truly "replaying" the exact same backend turn — the
+ * backend conversation log will show the question asked twice. This is a
+ * minor, disclosed trade-off of keeping the backend's chat API simple
+ * (add-message-and-reply) rather than adding a dedicated regenerate
+ * endpoint.
+ */
 export async function regenerateMessage(conversationId: string, assistantMessageId: string): Promise<void> {
   const { truncateFrom, addMessage } = useConversationsStore.getState();
   truncateFrom(conversationId, assistantMessageId);
@@ -136,16 +218,20 @@ export function isGenerating(assistantMessageId: string): boolean {
   return activeStreams.has(assistantMessageId);
 }
 
-/** Confirms a staged destructive action (delete*) and applies its result to the message. */
-export function confirmPendingAction(conversationId: string, messageId: string): void {
-  const message = useConversationsStore.getState().conversations.find((c) => c.id === conversationId)?.messages.find((m) => m.id === messageId);
-  if (!message?.action) return;
-  useConversationsStore.getState().updateMessage(conversationId, messageId, { action: confirmAction(message.action) });
+/**
+ * Destructive tool calls (delete task/goal, etc.) are executed immediately
+ * by the backend's AI orchestration layer, the same way every other tool
+ * is — there is no client-side "pending confirmation" stage anymore (an
+ * earlier, fully client-side prototype staged deletes for confirmation;
+ * seeing/confirming after the fact is no longer meaningful once execution
+ * has moved server-side). These are kept as no-op-safe stubs so any
+ * lingering UI wiring doesn't throw; they're no longer expected to be
+ * called since no message ever arrives with status "pending" now.
+ */
+export function confirmPendingAction(_conversationId: string, _messageId: string): void {
+  // Intentionally a no-op — see doc comment above.
 }
 
-/** Cancels a staged destructive action - nothing in the workspace changes. */
-export function cancelPendingAction(conversationId: string, messageId: string): void {
-  const message = useConversationsStore.getState().conversations.find((c) => c.id === conversationId)?.messages.find((m) => m.id === messageId);
-  if (!message?.action) return;
-  useConversationsStore.getState().updateMessage(conversationId, messageId, { action: cancelAction(message.action) });
+export function cancelPendingAction(_conversationId: string, _messageId: string): void {
+  // Intentionally a no-op — see doc comment above.
 }

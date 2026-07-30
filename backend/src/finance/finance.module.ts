@@ -13,5 +13,6 @@ import { SavingsGoalsService } from "./savings-goals.service";
 @Module({
   controllers: [AccountsController, TransactionsController, BudgetsController, BillsController, SavingsGoalsController],
   providers: [AccountsService, TransactionsService, BudgetsService, BillsService, SavingsGoalsService],
+  exports: [AccountsService, TransactionsService],
 })
 export class FinanceModule {}

@@ -262,13 +262,19 @@ export interface PreferenceSettings {
    Alien Assistant - AI provider + conversation types
    =========================================================================== */
 
-export type AIProviderKey = "demo" | "openai" | "anthropic" | "gemini" | "ollama";
+export type AIProviderKey = "auto" | "demo" | "openai" | "anthropic" | "gemini" | "ollama";
 
-/** Persisted locally (Settings > AI). The API key never leaves the browser. */
+/**
+ * Persisted locally as a fast-access cache and synced with the backend's
+ * AISettings (GET /users/me, PATCH /users/me/settings/ai) — the backend is
+ * the source of truth. No API key lives here: keys are configured
+ * server-side only (see backend .env.example) and the frontend never talks
+ * to Gemini/OpenAI/Anthropic/Ollama directly.
+ */
 export interface AISettings {
+  enabled: boolean;
   provider: AIProviderKey;
   model: string;
-  apiKey: string;
   streaming: boolean;
   temperature: number;
   maxTokens: number;
@@ -293,13 +299,15 @@ export interface ChatMessage {
   status: ChatMessageStatus;
   /** Present only when status is "error" - shown inline with a Retry action. */
   errorMessage?: string;
-  /** Present when the assistant proposed or performed a tool action alongside its reply. */
+  /** Present when the assistant performed a tool action alongside its reply (executed server-side by the AI orchestration layer). */
   action?: ChatAction;
   createdAt: string;
 }
 
 export interface Conversation {
   id: string;
+  /** The authoritative backend Conversation id, once known. Undefined until the first message in this conversation gets a reply — see chat-service.ts. */
+  backendId?: string;
   title: string;
   pinned: boolean;
   messages: ChatMessage[];
