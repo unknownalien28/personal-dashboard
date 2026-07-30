@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { AuthLayout } from "../components/AuthLayout";
 import { FormField } from "../components/FormField";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +22,7 @@ export function ResetPasswordPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isLoading) return; // guard against duplicate submissions
     setError(null);
 
     if (newPassword.length < 8) {
@@ -84,6 +85,7 @@ export function ResetPasswordPage() {
           autoComplete="new-password"
           required
           value={newPassword}
+          hint={!error ? "At least 8 characters." : undefined}
           onChange={(e) => setNewPassword(e.target.value)}
         />
         <FormField
@@ -96,7 +98,8 @@ export function ResetPasswordPage() {
         />
 
         {error && (
-          <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          <p role="alert" className="flex items-start gap-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
             {error}
           </p>
         )}

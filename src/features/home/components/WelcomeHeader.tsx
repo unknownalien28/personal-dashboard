@@ -6,10 +6,16 @@ import { Avatar } from "@/components/ui/Avatar";
 
 function getGreeting(hour: number) {
   if (hour < 5) return "Still up";
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  if (hour < 21) return "Good evening";
-  return "Good evening";
+  if (hour < 12) return "Good Morning";
+  if (hour < 17) return "Good Afternoon";
+  if (hour < 21) return "Good Evening";
+  return "Good Evening";
+}
+
+function getProductivityMessage(hour: number) {
+  if (hour < 12) return "Let's start the day strong.";
+  if (hour < 17) return "Keep the momentum going.";
+  return "Take a moment to review today's progress.";
 }
 
 export function WelcomeHeader() {
@@ -20,6 +26,9 @@ export function WelcomeHeader() {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Use just the first name when one is parseable; fall back to the full display name otherwise.
+  const firstName = name.trim().split(/\s+/)[0] || name;
 
   const dateLabel = now.toLocaleDateString(undefined, {
     weekday: "long",
@@ -38,9 +47,10 @@ export function WelcomeHeader() {
         <Avatar name={name} color={avatarColor} dataUrl={avatarDataUrl} />
         <div>
           <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-            {getGreeting(now.getHours())}, {name}
+            {getGreeting(now.getHours())}, {firstName} <span aria-hidden="true">👋</span>
           </h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{dateLabel}</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{getProductivityMessage(now.getHours())}</p>
         </div>
       </div>
       <div className="flex items-center gap-3">

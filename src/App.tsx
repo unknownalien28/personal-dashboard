@@ -6,6 +6,7 @@ import { NotFoundPage } from "@/components/ui/NotFoundPage";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { ProtectedRoute, GuestRoute } from "@/features/auth/ProtectedRoute";
+import { useApplyTheme } from "@/hooks/useApplyTheme";
 
 // Route-level code splitting keeps the initial bundle small for fast loads on
 // mid-range devices — each module's code downloads only when the person opens it.
@@ -42,6 +43,7 @@ const VerifyEmailPage = lazy(() =>
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate);
+  useApplyTheme();
 
   useEffect(() => {
     void hydrate();

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AmbientBackground } from "@/components/background/AmbientBackground";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 interface AuthLayoutProps {
   title: string;
@@ -13,6 +14,10 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
   return (
     <div className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[var(--color-canvas)] px-4 py-10">
       <AmbientBackground />
+
+      <div className="absolute top-4 right-4 z-[2] pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)]">
+        <ThemeToggle />
+      </div>
 
       <div className="relative z-[1] w-full max-w-md">
         <Link to="/welcome" className="mb-8 flex items-center justify-center gap-2 text-zinc-900 dark:text-zinc-100">

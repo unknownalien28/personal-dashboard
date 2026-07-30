@@ -7,6 +7,7 @@ import { VisualEffectsSection } from "@/features/profile/components/VisualEffect
 import { AISection } from "@/features/profile/components/AISection";
 import { NotificationsSection } from "@/features/profile/components/NotificationsSection";
 import { PreferencesSection } from "@/features/profile/components/PreferencesSection";
+import { SecuritySection } from "@/features/profile/components/SecuritySection";
 import { DataManagementSection } from "@/features/profile/components/DataManagementSection";
 import { AboutSection } from "@/features/profile/components/AboutSection";
 
@@ -17,6 +18,7 @@ const sectionLabels: Record<SettingsSection, string> = {
   ai: "AI",
   notifications: "Notifications",
   preferences: "Preferences",
+  security: "Security",
   data: "Data Management",
   about: "About",
 };
@@ -35,6 +37,8 @@ function renderSection(section: SettingsSection) {
       return <NotificationsSection />;
     case "preferences":
       return <PreferencesSection />;
+    case "security":
+      return <SecuritySection />;
     case "data":
       return <DataManagementSection />;
     case "about":

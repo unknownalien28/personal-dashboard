@@ -7,12 +7,10 @@ import { ToastContainer } from "@/components/ui/ToastContainer";
 import { AmbientBackground } from "@/components/background/AmbientBackground";
 import { FloatingAssistant } from "@/features/ai/components/FloatingAssistant";
 import { CommandPalette } from "@/features/command-palette/CommandPalette";
-import { useApplyTheme } from "@/hooks/useApplyTheme";
 import { useApplyAppearance } from "@/hooks/useApplyAppearance";
 import { useApplyVisualEffects } from "@/hooks/useApplyVisualEffects";
 
 export function AppShell() {
-  useApplyTheme();
   useApplyAppearance();
   useApplyVisualEffects();
   const [collapsed, setCollapsed] = useState(false);

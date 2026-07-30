@@ -1,10 +1,21 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { AuthLayout } from "../components/AuthLayout";
 import { FormField } from "../components/FormField";
+import { PasswordStrengthMeter } from "../components/PasswordStrengthMeter";
 import { SocialLoginButtons } from "../components/SocialLoginButtons";
 import { useAuthStore } from "../auth-store";
 import { Button } from "@/components/ui/Button";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface FieldErrors {
+  name?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+}
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -17,21 +28,23 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  function validate(): boolean {
+    const errors: FieldErrors = {};
+    if (!email.trim()) errors.email = "Email is required.";
+    else if (!EMAIL_RE.test(email)) errors.email = "Enter a valid email address.";
+    if (password.length < 8) errors.password = "Password must be at least 8 characters.";
+    if (confirmPassword !== password) errors.confirmPassword = "Passwords don't match.";
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isLoading) return; // guard against duplicate submissions
     clearError();
-    setLocalError(null);
-
-    if (password.length < 8) {
-      setLocalError("Password must be at least 8 characters.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setLocalError("Passwords don't match.");
-      return;
-    }
+    if (!validate()) return;
 
     try {
       await register(email, password, name || undefined);
@@ -41,7 +54,9 @@ export function RegisterPage() {
     }
   }
 
-  const displayedError = localError ?? error;
+  function clearFieldError(field: keyof FieldErrors) {
+    if (fieldErrors[field]) setFieldErrors((f) => ({ ...f, [field]: undefined }));
+  }
 
   return (
     <AuthLayout
@@ -56,15 +71,25 @@ export function RegisterPage() {
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Name" type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        <FormField
+          label="Name"
+          type="text"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <FormField
           label="Email"
           type="email"
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          error={fieldErrors.email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clearFieldError("email");
+          }}
         />
         <FormField
           label="Password"
@@ -72,20 +97,31 @@ export function RegisterPage() {
           autoComplete="new-password"
           required
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          error={fieldErrors.password}
+          hint={!fieldErrors.password ? "At least 8 characters." : undefined}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            clearFieldError("password");
+          }}
         />
+        <PasswordStrengthMeter password={password} />
         <FormField
           label="Confirm password"
           type="password"
           autoComplete="new-password"
           required
           value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
+          error={fieldErrors.confirmPassword}
+          onChange={(e) => {
+            setConfirmPassword(e.target.value);
+            clearFieldError("confirmPassword");
+          }}
         />
 
-        {displayedError && (
-          <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-            {displayedError}
+        {error && (
+          <p role="alert" className="flex items-start gap-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+            {error}
           </p>
         )}
 

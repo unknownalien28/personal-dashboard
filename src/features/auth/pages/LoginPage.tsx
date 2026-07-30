@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { AuthLayout } from "../components/AuthLayout";
 import { FormField } from "../components/FormField";
 import { SocialLoginButtons } from "../components/SocialLoginButtons";
 import { useAuthStore } from "../auth-store";
 import { Button } from "@/components/ui/Button";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -17,10 +20,22 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+
+  function validate(): boolean {
+    const errors: { email?: string; password?: string } = {};
+    if (!email.trim()) errors.email = "Email is required.";
+    else if (!EMAIL_RE.test(email)) errors.email = "Enter a valid email address.";
+    if (!password) errors.password = "Password is required.";
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isLoading) return; // guard against duplicate submissions
     clearError();
+    if (!validate()) return;
     try {
       await login(email, password, rememberMe);
       const from = (location.state as { from?: string } | null)?.from ?? "/";
@@ -43,14 +58,18 @@ export function LoginPage() {
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <FormField
           label="Email"
           type="email"
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          error={fieldErrors.email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (fieldErrors.email) setFieldErrors((f) => ({ ...f, email: undefined }));
+          }}
         />
         <FormField
           label="Password"
@@ -58,7 +77,11 @@ export function LoginPage() {
           autoComplete="current-password"
           required
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          error={fieldErrors.password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (fieldErrors.password) setFieldErrors((f) => ({ ...f, password: undefined }));
+          }}
         />
 
         <div className="flex items-center justify-between text-sm">
@@ -77,7 +100,8 @@ export function LoginPage() {
         </div>
 
         {error && (
-          <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          <p role="alert" className="flex items-start gap-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
             {error}
           </p>
         )}

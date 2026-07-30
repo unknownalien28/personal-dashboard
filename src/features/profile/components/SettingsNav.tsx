@@ -1,4 +1,4 @@
-import { User, Palette, Bell, SlidersHorizontal, Database, Info, ChevronRight, Sparkles, Bot } from "lucide-react";
+import { User, Palette, Bell, SlidersHorizontal, Database, Info, ChevronRight, Sparkles, Bot, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export type SettingsSection =
@@ -8,6 +8,7 @@ export type SettingsSection =
   | "ai"
   | "notifications"
   | "preferences"
+  | "security"
   | "data"
   | "about";
 
@@ -18,6 +19,7 @@ const sections: { value: SettingsSection; label: string; icon: typeof User; desc
   { value: "ai", label: "AI", icon: Bot, description: "Provider, model, and API key for Alien Assistant" },
   { value: "notifications", label: "Notifications", icon: Bell, description: "Reminders across the app" },
   { value: "preferences", label: "Preferences", icon: SlidersHorizontal, description: "Default views and startup page" },
+  { value: "security", label: "Security", icon: ShieldCheck, description: "Password and active sessions" },
   { value: "data", label: "Data Management", icon: Database, description: "Export, import, and storage" },
   { value: "about", label: "About", icon: Info, description: "Version, shortcuts, credits" },
 ];

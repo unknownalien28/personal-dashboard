@@ -89,9 +89,7 @@ export function ProfileSection() {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
-          Email <span className="text-zinc-400">(placeholder — no account system yet)</span>
-        </label>
+        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Email</label>
         <input
           type="email"
           value={profile.email}
