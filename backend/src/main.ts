@@ -36,7 +36,27 @@ function assertProductionSecretsAreConfigured(config: ConfigService): void {
   }
 }
 
+/**
+ * Every real AI provider (Gemini, OpenAI, Anthropic, Ollama) combines the
+ * caller's cancellation signal with a request timeout via `AbortSignal.any()`
+ * (added in Node 20.3). `package.json`'s `engines` field documents this, but
+ * `engines` alone only produces an installer *warning*, not a hard failure —
+ * so without this check, running on an older Node silently works right up
+ * until the first streaming AI request, which then throws a cryptic
+ * "AbortSignal.any is not a function" deep inside a provider. Fail fast and
+ * clearly instead.
+ */
+function assertNodeVersionSupportsAbortSignalAny(): void {
+  if (typeof AbortSignal.any !== "function") {
+    throw new Error(
+      `AlienOS backend requires Node.js >= 20.3 (AbortSignal.any is required by every AI provider's cancellation/timeout handling). Current version: ${process.version}. Please upgrade Node.`,
+    );
+  }
+}
+
 async function bootstrap() {
+  assertNodeVersionSupportsAbortSignalAny();
+
   const app = await NestFactory.create(AppModule, {
     logger: WinstonModule.createLogger(buildLoggerOptions()),
   });

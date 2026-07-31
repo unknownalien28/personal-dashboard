@@ -46,7 +46,11 @@ export class GeminiProvider implements AiProvider {
   }
 
   private get model(): string {
-    return this.config.get<string>("ai.geminiModel") ?? "gemini-2.5-flash";
+    // configuration.ts always supplies a default (currently gemini-3.6-flash)
+    // even with no AI_GEMINI_MODEL set, so this is the single source of truth
+    // for "what model do we use when the caller doesn't specify one" - no
+    // second hardcoded default here to drift out of sync with it.
+    return this.config.get<string>("ai.geminiModel")!;
   }
 
   private get timeoutMs(): number {

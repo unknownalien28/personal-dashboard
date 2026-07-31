@@ -108,7 +108,12 @@ export default (): AppConfig => ({
     // Primary provider. Per Phase 2: read from GEMINI_API_KEY. AI_GEMINI_API_KEY
     // is kept as a fallback for anyone who set it up during Phase 1/2 planning.
     geminiApiKey: process.env.GEMINI_API_KEY || process.env.AI_GEMINI_API_KEY || undefined,
-    geminiModel: process.env.AI_GEMINI_MODEL || "gemini-2.5-flash",
+    // Default kept in sync with Google's currently-supported stable models
+    // (see https://ai.google.dev/gemini-api/docs/models and .../deprecations).
+    // gemini-2.5-flash was retired for new API keys mid-2026; gemini-3.6-flash
+    // is the current GA "flash" tier default. Override with AI_GEMINI_MODEL
+    // (no redeploy needed) the moment Google ships a newer default.
+    geminiModel: process.env.AI_GEMINI_MODEL || "gemini-3.6-flash",
     // Ollama is the official offline/local provider. Read plain OLLAMA_*
     // names first (per the hybrid-architecture spec); AI_OLLAMA_* is kept
     // as a fallback for anyone who set that up during earlier phases.

@@ -30,6 +30,12 @@ export function isRetryableStatus(status: number | undefined): boolean {
   if (status === undefined) return true; // network-level errors (no status) are usually transient
   if (status === 429) return true; // rate limited
   if (status >= 500 && status <= 599) return true; // upstream server error
+  // Explicitly NOT retried: 404 (unknown/deprecated model - e.g. Google
+  // retiring gemini-2.5-flash for new API keys), 400 (bad request), 401/403
+  // (bad/missing API key). None of these are fixed by trying again with the
+  // same request, so the provider fails immediately and
+  // AiOrchestratorService moves on to the next candidate in the chain
+  // without wasting a retry cycle's worth of backoff delay first.
   return false;
 }
 
