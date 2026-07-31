@@ -6,10 +6,11 @@ import {
   AiMessage,
   AiProvider,
   AiStreamChunk,
+  AiTokenUsage,
   AiToolCall,
   AiToolDefinition,
 } from "./ai-provider.interface";
-import { retryWithBackoff, withTimeout } from "./provider-http.util";
+import { retryWithBackoff, combineWithTimeout } from "./provider-http.util";
 
 interface OllamaToolCall {
   id?: string;
@@ -70,44 +71,47 @@ export class OllamaProvider implements AiProvider {
       tools: toOllamaTools(request.tools),
       options: { temperature: request.temperature },
     };
+    const { signal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
-    const response = await retryWithBackoff(
-      () =>
-        withTimeout(
+    let response: Response;
+    try {
+      response = await retryWithBackoff(
+        () =>
           fetch(`${this.baseUrl}/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
-            signal: request.signal,
+            signal,
           }),
-          this.timeoutMs,
-          "Ollama /api/chat",
-        ),
-      { maxAttempts: this.maxRetries + 1, signal: request.signal },
-    ).catch((error) => {
+        { maxAttempts: this.maxRetries + 1, signal: request.signal },
+      );
+    } catch (error) {
       throw new Error(`Ollama request failed: ${describeError(error)}`);
-    });
+    } finally {
+      cleanup();
+    }
 
     if (!response.ok) {
       throw new Error(`Ollama request failed: HTTP ${response.status} ${await safeText(response)}`);
     }
 
-    const json = (await response.json()) as { message?: OllamaChatResponseMessage };
+    const json = (await response.json()) as { message?: OllamaChatResponseMessage; prompt_eval_count?: number; eval_count?: number };
+    const usage = toAiUsage(json);
     const toolCalls = json.message?.tool_calls;
     if (toolCalls?.length) {
       return {
         content: json.message?.content ?? "",
         toolCalls: toolCalls.map(toAiToolCall),
         finishReason: "tool_calls",
+        usage,
       };
     }
 
-    return { content: json.message?.content ?? "", finishReason: "stop" };
+    return { content: json.message?.content ?? "", finishReason: "stop", usage };
   }
 
   async *stream(request: AiCompletionRequest): AsyncGenerator<AiStreamChunk> {
-    const timeoutSignal = AbortSignal.timeout(this.timeoutMs);
-    const combinedSignal = request.signal ? AbortSignal.any([request.signal, timeoutSignal]) : timeoutSignal;
+    const { signal: combinedSignal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
     const body = {
       model: request.model ?? this.model,
@@ -130,10 +134,12 @@ export class OllamaProvider implements AiProvider {
         { maxAttempts: this.maxRetries + 1, signal: request.signal },
       );
     } catch (error) {
+      cleanup();
       throw new Error(`Ollama streaming request failed: ${describeError(error)}`);
     }
 
     if (!response.ok || !response.body) {
+      cleanup();
       throw new Error(`Ollama streaming request failed: HTTP ${response.status} ${await safeText(response)}`);
     }
 
@@ -154,15 +160,21 @@ export class OllamaProvider implements AiProvider {
           buffer = buffer.slice(newlineIndex + 1);
           if (!line) continue;
 
-          const parsed = JSON.parse(line) as { message?: OllamaChatResponseMessage; done?: boolean };
+          const parsed = JSON.parse(line) as {
+            message?: OllamaChatResponseMessage;
+            done?: boolean;
+            prompt_eval_count?: number;
+            eval_count?: number;
+          };
           if (parsed.message?.tool_calls?.length) collectedToolCalls.push(...parsed.message.tool_calls);
           if (parsed.message?.content) yield { delta: parsed.message.content, done: false };
 
           if (parsed.done) {
+            const usage = toAiUsage(parsed);
             if (collectedToolCalls.length > 0) {
-              yield { delta: "", done: true, toolCalls: collectedToolCalls.map(toAiToolCall), finishReason: "tool_calls" };
+              yield { delta: "", done: true, toolCalls: collectedToolCalls.map(toAiToolCall), finishReason: "tool_calls", usage };
             } else {
-              yield { delta: "", done: true, finishReason: "stop" };
+              yield { delta: "", done: true, finishReason: "stop", usage };
             }
             return;
           }
@@ -171,6 +183,8 @@ export class OllamaProvider implements AiProvider {
     } catch (error) {
       this.logger.error(`Ollama stream interrupted: ${describeError(error)}`);
       throw new Error(`Ollama streaming request failed: ${describeError(error)}`);
+    } finally {
+      cleanup();
     }
 
     yield { delta: "", done: true, finishReason: "stop" };
@@ -199,6 +213,13 @@ function toOllamaMessages(messages: AiMessage[]): Array<{ role: string; content:
     }
     return { role: m.role, content: m.content };
   });
+}
+
+function toAiUsage(json: { prompt_eval_count?: number; eval_count?: number }): AiTokenUsage | undefined {
+  if (json.prompt_eval_count === undefined && json.eval_count === undefined) return undefined;
+  const totalTokens =
+    json.prompt_eval_count !== undefined && json.eval_count !== undefined ? json.prompt_eval_count + json.eval_count : undefined;
+  return { promptTokens: json.prompt_eval_count, completionTokens: json.eval_count, totalTokens };
 }
 
 function safeJsonParse(text: string): Record<string, unknown> {

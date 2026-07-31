@@ -2,8 +2,9 @@ import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ConversationsService } from "../conversations/conversations.service";
 import { UsersService } from "../users/users.service";
-import { AiMessage, AiProvider, AiToolCall } from "./providers/ai-provider.interface";
+import { AiMessage, AiProvider, AiTokenUsage, AiToolCall } from "./providers/ai-provider.interface";
 import { AiProviderRegistry } from "./providers/registry";
+import { ProviderHealthService } from "./providers/provider-health.service";
 import { PromptManagerService } from "./prompt-manager.service";
 import { ToolRegistryService } from "./tools/tool-registry.service";
 import { SendMessageDto } from "./dto/ai.schemas";
@@ -48,14 +49,28 @@ export interface SendMessageResult {
   provider: string;
   fallbackNote?: string;
   actions: ToolActionSummary[];
+  /** Token usage for this turn. When a turn involves multiple tool-calling iterations (more than one provider call), this is the sum across all of them - the true cost of the turn, not just the final reply. */
+  usage?: AiTokenUsage;
 }
 
 export type AiStreamEvent =
   | { type: "token"; delta: string }
   | { type: "tool_call"; tool: string; args: Record<string, unknown> }
   | { type: "tool_result"; tool: string; success: boolean; message: string }
-  | { type: "done"; conversationId: string; provider: string; fallbackNote?: string }
+  | { type: "done"; conversationId: string; provider: string; fallbackNote?: string; usage?: AiTokenUsage }
   | { type: "error"; message: string };
+
+/** Sums token usage across multiple provider calls within a single turn (tool-calling iterations each invoke a provider again). Fields present on either side are added; a field absent on both stays absent rather than becoming 0, so "no data available" is distinguishable from "used zero tokens". */
+function addUsage(a: AiTokenUsage | undefined, b: AiTokenUsage | undefined): AiTokenUsage | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const sum = (x?: number, y?: number) => (x === undefined && y === undefined ? undefined : (x ?? 0) + (y ?? 0));
+  return {
+    promptTokens: sum(a.promptTokens, b.promptTokens),
+    completionTokens: sum(a.completionTokens, b.completionTokens),
+    totalTokens: sum(a.totalTokens, b.totalTokens),
+  };
+}
 
 /**
  * The AI orchestration layer: the single place that decides which provider
@@ -94,14 +109,16 @@ export class AiOrchestratorService {
     private readonly usersService: UsersService,
     private readonly toolRegistry: ToolRegistryService,
     private readonly config: ConfigService,
+    private readonly health: ProviderHealthService,
   ) {}
 
   private get maxToolIterations(): number {
     return this.config.get<number>("ai.maxToolIterations") ?? 4;
   }
 
+  /** Configured status (from the registry) merged with live health status (from ProviderHealthService) - used by GET /ai/providers. */
   listProviders() {
-    return this.providers.listWithStatus();
+    return this.providers.listWithStatus().map((p) => ({ ...p, ...this.health.getStatus(p.key) }));
   }
 
   listTools() {
@@ -130,7 +147,15 @@ export class AiOrchestratorService {
     // "demo" is always configured, so this is unreachable in practice —
     // kept as a hard guarantee that a reply is always possible.
     if (candidates.length === 0) candidates.push(this.providers.resolve("demo"));
-    return candidates;
+
+    // Stable partition: healthy candidates first (in their original
+    // priority order), currently-unhealthy ones moved to the end (also in
+    // their original relative order) rather than dropped - see
+    // ProviderHealthService's class doc comment for why this isn't a hard
+    // circuit breaker.
+    const healthy = candidates.filter((c) => this.health.isHealthy(c.key));
+    const unhealthy = candidates.filter((c) => !this.health.isHealthy(c.key));
+    return [...healthy, ...unhealthy];
   }
 
   /**
@@ -200,6 +225,7 @@ export class AiOrchestratorService {
     const attemptNotes: string[] = [];
     const actions: ToolActionSummary[] = [];
     let turnMessages: AiMessage[] = [];
+    let turnUsage: AiTokenUsage | undefined;
 
     for (let iteration = 0; iteration < this.maxToolIterations; iteration++) {
       if (signal?.aborted) {
@@ -219,6 +245,7 @@ export class AiOrchestratorService {
 
       let result: Awaited<ReturnType<AiProvider["complete"]>> | undefined;
       for (const candidate of candidatesToTry) {
+        const attemptStart = Date.now();
         try {
           result = await candidate.complete({
             messages,
@@ -228,6 +255,14 @@ export class AiOrchestratorService {
             tools: this.supportsTools(candidate) ? tools : undefined,
             signal,
           });
+          const latencyMs = Date.now() - attemptStart;
+          this.health.recordSuccess(candidate.key);
+          turnUsage = addUsage(turnUsage, result.usage);
+          this.logger.log(
+            `AI turn succeeded: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs} ` +
+              `promptTokens=${result.usage?.promptTokens ?? "n/a"} completionTokens=${result.usage?.completionTokens ?? "n/a"} ` +
+              `totalTokens=${result.usage?.totalTokens ?? "n/a"} finishReason=${result.finishReason}`,
+          );
           if (!activeProvider) {
             activeProvider = candidate;
             if (candidate.key !== desiredKey) {
@@ -236,11 +271,18 @@ export class AiOrchestratorService {
                   ? `Auto mode selected "${candidate.key}".`
                   : `"${desiredKey}" wasn't available — used "${candidate.key}" instead.`,
               );
+              this.logger.log(
+                `AI fallback decision: conversation=${conversationId} desired="${desiredKey}" selected="${candidate.key}" reason=auto-routing`,
+              );
             }
           }
           break;
         } catch (error) {
-          this.logger.warn(`Provider "${candidate.key}" failed for conversation ${conversationId}: ${describeError(error)}`);
+          const latencyMs = Date.now() - attemptStart;
+          this.health.recordFailure(candidate.key);
+          this.logger.warn(
+            `AI turn failed: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs} error="${describeError(error)}"`,
+          );
           attemptNotes.push(`"${candidate.key}" failed (${describeError(error)}).`);
         }
       }
@@ -287,12 +329,19 @@ export class AiOrchestratorService {
       status: "complete",
     });
 
+    this.logger.log(
+      `AI turn complete: conversation=${conversationId} provider="${(activeProvider ?? candidates[0]).key}" ` +
+        `totalPromptTokens=${turnUsage?.promptTokens ?? "n/a"} totalCompletionTokens=${turnUsage?.completionTokens ?? "n/a"} ` +
+        `totalTokens=${turnUsage?.totalTokens ?? "n/a"} actionsCount=${actions.length}`,
+    );
+
     return {
       conversationId,
       message: assistantMessage,
       provider: (activeProvider ?? candidates[0]).key,
       fallbackNote: attemptNotes.length ? attemptNotes.join(" ") : undefined,
       actions,
+      usage: turnUsage,
     };
   }
 
@@ -353,6 +402,7 @@ export class AiOrchestratorService {
     let accumulated = "";
     let activeProvider: AiProvider | undefined;
     let turnMessages: AiMessage[] = [];
+    let turnUsage: AiTokenUsage | undefined;
 
     try {
       for (let iteration = 0; iteration < this.maxToolIterations; iteration++) {
@@ -369,10 +419,12 @@ export class AiOrchestratorService {
 
         let iterationText = "";
         let toolCalls: AiToolCall[] | undefined;
+        let iterationUsage: AiTokenUsage | undefined;
         let succeeded = false;
 
         for (const candidate of candidatesToTry) {
           let yieldedAny = false;
+          const attemptStart = Date.now();
           try {
             for await (const chunk of candidate.stream({
               messages,
@@ -388,13 +440,33 @@ export class AiOrchestratorService {
                 yieldedAny = true;
                 yield { type: "token", delta: chunk.delta };
               }
-              if (chunk.done && chunk.toolCalls?.length) toolCalls = chunk.toolCalls;
+              if (chunk.done) {
+                if (chunk.toolCalls?.length) toolCalls = chunk.toolCalls;
+                if (chunk.usage) iterationUsage = chunk.usage;
+              }
             }
+            const latencyMs = Date.now() - attemptStart;
             activeProvider = candidate;
             succeeded = true;
+            this.health.recordSuccess(candidate.key);
+            turnUsage = addUsage(turnUsage, iterationUsage);
+            this.logger.log(
+              `AI stream turn succeeded: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs} ` +
+                `promptTokens=${iterationUsage?.promptTokens ?? "n/a"} completionTokens=${iterationUsage?.completionTokens ?? "n/a"} ` +
+                `totalTokens=${iterationUsage?.totalTokens ?? "n/a"}`,
+            );
+            if (candidate.key !== desiredKey && iteration === 0) {
+              this.logger.log(
+                `AI fallback decision: conversation=${conversationId} desired="${desiredKey}" selected="${candidate.key}" reason=auto-routing`,
+              );
+            }
             break;
           } catch (error) {
-            this.logger.warn(`Provider "${candidate.key}" failed for conversation ${conversationId}: ${describeError(error)}`);
+            const latencyMs = Date.now() - attemptStart;
+            this.health.recordFailure(candidate.key);
+            this.logger.warn(
+              `AI stream turn failed: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs} error="${describeError(error)}"`,
+            );
             if (yieldedAny) {
               // Already streamed partial output to the client on this provider — can't safely retry elsewhere.
               yield { type: "error", message: `Lost connection to "${candidate.key}" mid-response: ${describeError(error)}` };
@@ -450,7 +522,13 @@ export class AiOrchestratorService {
           : `"${desiredKey}" wasn't available — used "${activeProvider.key}" instead.`
         : undefined;
 
-    yield { type: "done", conversationId, provider: (activeProvider ?? candidates[0]).key, fallbackNote };
+    this.logger.log(
+      `AI stream turn complete: conversation=${conversationId} provider="${(activeProvider ?? candidates[0]).key}" ` +
+        `totalPromptTokens=${turnUsage?.promptTokens ?? "n/a"} totalCompletionTokens=${turnUsage?.completionTokens ?? "n/a"} ` +
+        `totalTokens=${turnUsage?.totalTokens ?? "n/a"}`,
+    );
+
+    yield { type: "done", conversationId, provider: (activeProvider ?? candidates[0]).key, fallbackNote, usage: turnUsage };
   }
 }
 

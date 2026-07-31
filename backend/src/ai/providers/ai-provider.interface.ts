@@ -56,10 +56,23 @@ export interface AiCompletionRequest {
 
 export type AiFinishReason = "stop" | "tool_calls" | "length" | "error";
 
+/**
+ * Token counts as reported by the provider itself. All optional since not
+ * every provider/path can supply every field (e.g. Ollama has no direct
+ * "total" field, some streaming paths only get usage on the final chunk,
+ * and a provider that fails before responding has none at all).
+ */
+export interface AiTokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export interface AiCompletionResult {
   content: string;
   toolCalls?: AiToolCall[];
   finishReason: AiFinishReason;
+  usage?: AiTokenUsage;
 }
 
 export interface AiStreamChunk {
@@ -68,6 +81,8 @@ export interface AiStreamChunk {
   /** Only ever present on the final chunk, when the model decided to call tools instead of (or in addition to) replying with text. */
   toolCalls?: AiToolCall[];
   finishReason?: AiFinishReason;
+  /** Only ever present on the final chunk (done=true), when the provider/SDK exposes it for its streaming API. */
+  usage?: AiTokenUsage;
 }
 
 export interface AiProvider {

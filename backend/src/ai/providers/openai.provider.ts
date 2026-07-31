@@ -8,10 +8,11 @@ import {
   AiMessage,
   AiProvider,
   AiStreamChunk,
+  AiTokenUsage,
   AiToolCall,
   AiToolDefinition,
 } from "./ai-provider.interface";
-import { retryWithBackoff, withTimeout } from "./provider-http.util";
+import { retryWithBackoff, combineWithTimeout } from "./provider-http.util";
 
 /**
  * Production OpenAI provider, backed by the official `openai` SDK's Chat
@@ -59,10 +60,12 @@ export class OpenAiProvider implements AiProvider {
     const client = this.getClient();
     const messages = toOpenAiMessages(request.messages);
     const tools = toOpenAiTools(request.tools);
+    const { signal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
-    const response = await retryWithBackoff(
-      () =>
-        withTimeout(
+    let response: Awaited<ReturnType<typeof client.chat.completions.create>>;
+    try {
+      response = await retryWithBackoff(
+        () =>
           client.chat.completions.create(
             {
               model: request.model ?? this.model,
@@ -71,16 +74,17 @@ export class OpenAiProvider implements AiProvider {
               max_tokens: request.maxTokens,
               tools,
             },
-            { signal: request.signal },
+            { signal },
           ),
-          this.timeoutMs,
-          "OpenAI chat.completions.create",
-        ),
-      { maxAttempts: this.maxRetries + 1, signal: request.signal },
-    ).catch((error) => {
+        { maxAttempts: this.maxRetries + 1, signal: request.signal },
+      );
+    } catch (error) {
       throw new Error(`OpenAI request failed: ${describeError(error)}`);
-    });
+    } finally {
+      cleanup();
+    }
 
+    const usage = toAiUsage(response.usage);
     const choice = response.choices[0];
     const toolCalls = choice?.message?.tool_calls;
     if (toolCalls?.length) {
@@ -90,12 +94,14 @@ export class OpenAiProvider implements AiProvider {
           .filter((call): call is typeof call & { type: "function" } => call.type === "function")
           .map((call) => ({ id: call.id, name: call.function.name, arguments: safeJsonParse(call.function.arguments) })),
         finishReason: "tool_calls",
+        usage,
       };
     }
 
     return {
       content: choice?.message?.content ?? "",
       finishReason: choice?.finish_reason === "length" ? "length" : "stop",
+      usage,
     };
   }
 
@@ -103,11 +109,7 @@ export class OpenAiProvider implements AiProvider {
     const client = this.getClient();
     const messages = toOpenAiMessages(request.messages);
     const tools = toOpenAiTools(request.tools);
-
-    // Combine the caller's cancellation signal with a hard timeout so a
-    // stalled upstream stream can't hang the request forever.
-    const timeoutSignal = AbortSignal.timeout(this.timeoutMs);
-    const combinedSignal = request.signal ? AbortSignal.any([request.signal, timeoutSignal]) : timeoutSignal;
+    const { signal: combinedSignal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
     let streamResponse: Awaited<ReturnType<typeof client.chat.completions.create>>;
     try {
@@ -121,18 +123,24 @@ export class OpenAiProvider implements AiProvider {
               max_tokens: request.maxTokens,
               tools,
               stream: true,
+              // Without this, OpenAI never sends a usage figure on a streamed
+              // response at all - the final chunk (empty choices array,
+              // usage populated) only appears when this is explicitly requested.
+              stream_options: { include_usage: true },
             },
             { signal: combinedSignal },
           ),
         { maxAttempts: this.maxRetries + 1, signal: request.signal },
       );
     } catch (error) {
+      cleanup();
       throw new Error(`OpenAI streaming request failed: ${describeError(error)}`);
     }
 
     // Tool call argument fragments arrive incrementally, indexed by position.
     const toolCallAccumulator = new Map<number, { id: string; name: string; args: string }>();
     let finishReason: AiCompletionResult["finishReason"] = "stop";
+    let usage: AiTokenUsage | undefined;
 
     try {
       // `streamResponse` is a Stream<ChatCompletionChunk> when stream: true.
@@ -141,8 +149,10 @@ export class OpenAiProvider implements AiProvider {
           delta: { content?: string | null; tool_calls?: Array<{ index: number; id?: string; function?: { name?: string; arguments?: string } }> };
           finish_reason?: string | null;
         }>;
+        usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null;
       }>) {
         if (request.signal?.aborted) return;
+        if (chunk.usage) usage = toAiUsage(chunk.usage);
         const choice = chunk.choices[0];
         if (!choice) continue;
 
@@ -164,6 +174,8 @@ export class OpenAiProvider implements AiProvider {
     } catch (error) {
       this.logger.error(`OpenAI stream interrupted: ${describeError(error)}`);
       throw new Error(`OpenAI streaming request failed: ${describeError(error)}`);
+    } finally {
+      cleanup();
     }
 
     if (toolCallAccumulator.size > 0) {
@@ -172,11 +184,16 @@ export class OpenAiProvider implements AiProvider {
         name: call.name,
         arguments: safeJsonParse(call.args),
       }));
-      yield { delta: "", done: true, toolCalls, finishReason: "tool_calls" };
+      yield { delta: "", done: true, toolCalls, finishReason: "tool_calls", usage };
     } else {
-      yield { delta: "", done: true, finishReason };
+      yield { delta: "", done: true, finishReason, usage };
     }
   }
+}
+
+function toAiUsage(usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null | undefined): AiTokenUsage | undefined {
+  if (!usage) return undefined;
+  return { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens, totalTokens: usage.total_tokens };
 }
 
 function toOpenAiTools(tools: AiToolDefinition[] | undefined): ChatCompletionTool[] | undefined {

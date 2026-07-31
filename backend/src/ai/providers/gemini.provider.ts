@@ -8,10 +8,11 @@ import {
   AiMessage,
   AiProvider,
   AiStreamChunk,
+  AiTokenUsage,
   AiToolCall,
   AiToolDefinition,
 } from "./ai-provider.interface";
-import { retryWithBackoff, withTimeout } from "./provider-http.util";
+import { retryWithBackoff, combineWithTimeout } from "./provider-http.util";
 
 /**
  * Production Google Gemini provider, backed by the official `@google/genai`
@@ -65,10 +66,12 @@ export class GeminiProvider implements AiProvider {
     const client = this.getClient();
     const { systemInstruction, contents } = toGeminiContents(request.messages);
     const tools = request.tools?.length ? [{ functionDeclarations: request.tools.map(toGeminiFunctionDeclaration) }] : undefined;
+    const { signal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
-    const response = await retryWithBackoff(
-      () =>
-        withTimeout(
+    let response: Awaited<ReturnType<typeof client.models.generateContent>>;
+    try {
+      response = await retryWithBackoff(
+        () =>
           client.models.generateContent({
             model: request.model ?? this.model,
             contents,
@@ -77,40 +80,38 @@ export class GeminiProvider implements AiProvider {
               temperature: request.temperature,
               maxOutputTokens: request.maxTokens,
               tools,
-              abortSignal: request.signal,
+              abortSignal: signal,
             },
           }),
-          this.timeoutMs,
-          "Gemini generateContent",
-        ),
-      { maxAttempts: this.maxRetries + 1, signal: request.signal },
-    ).catch((error) => {
+        { maxAttempts: this.maxRetries + 1, signal: request.signal },
+      );
+    } catch (error) {
       throw new Error(`Gemini request failed: ${describeError(error)}`);
-    });
+    } finally {
+      cleanup();
+    }
 
+    const usage = toAiUsage(response.usageMetadata);
     const functionCalls = response.functionCalls ?? [];
     if (functionCalls.length > 0) {
       return {
         content: response.text ?? "",
         toolCalls: functionCalls.map(toAiToolCall),
         finishReason: "tool_calls",
+        usage,
       };
     }
 
-    return { content: response.text ?? "", finishReason: "stop" };
+    return { content: response.text ?? "", finishReason: "stop", usage };
   }
 
   async *stream(request: AiCompletionRequest): AsyncGenerator<AiStreamChunk> {
     const client = this.getClient();
     const { systemInstruction, contents } = toGeminiContents(request.messages);
     const tools = request.tools?.length ? [{ functionDeclarations: request.tools.map(toGeminiFunctionDeclaration) }] : undefined;
+    const { signal: combinedSignal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
-    // Combine the caller's cancellation signal with a hard timeout so a
-    // stalled upstream stream can't hang the request forever.
-    const timeoutSignal = AbortSignal.timeout(this.timeoutMs);
-    const combinedSignal = request.signal ? AbortSignal.any([request.signal, timeoutSignal]) : timeoutSignal;
-
-    let streamIterator: AsyncGenerator<{ text?: string; functionCalls?: FunctionCall[] }>;
+    let streamIterator: AsyncGenerator<{ text?: string; functionCalls?: FunctionCall[]; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }>;
     try {
       streamIterator = await retryWithBackoff(
         () =>
@@ -128,26 +129,35 @@ export class GeminiProvider implements AiProvider {
         { maxAttempts: this.maxRetries + 1, signal: request.signal },
       );
     } catch (error) {
+      cleanup();
       throw new Error(`Gemini streaming request failed: ${describeError(error)}`);
     }
 
     const collectedCalls: FunctionCall[] = [];
+    let usage: AiTokenUsage | undefined;
     try {
       for await (const chunk of streamIterator) {
         if (request.signal?.aborted) return;
         if (chunk.functionCalls?.length) collectedCalls.push(...chunk.functionCalls);
+        // Gemini reports cumulative usageMetadata on multiple chunks as the
+        // response progresses - each later chunk's totals supersede earlier
+        // ones, so just keep overwriting; the last chunk received has the
+        // final, complete counts.
+        if (chunk.usageMetadata) usage = toAiUsage(chunk.usageMetadata);
         const delta = chunk.text ?? "";
         if (delta) yield { delta, done: false };
       }
     } catch (error) {
       this.logger.error(`Gemini stream interrupted: ${describeError(error)}`);
       throw new Error(`Gemini streaming request failed: ${describeError(error)}`);
+    } finally {
+      cleanup();
     }
 
     if (collectedCalls.length > 0) {
-      yield { delta: "", done: true, toolCalls: collectedCalls.map(toAiToolCall), finishReason: "tool_calls" };
+      yield { delta: "", done: true, toolCalls: collectedCalls.map(toAiToolCall), finishReason: "tool_calls", usage };
     } else {
-      yield { delta: "", done: true, finishReason: "stop" };
+      yield { delta: "", done: true, finishReason: "stop", usage };
     }
   }
 }
@@ -208,6 +218,11 @@ function toGeminiContents(messages: AiMessage[]): { systemInstruction: string | 
   }
 
   return { systemInstruction: systemParts.length ? systemParts.join("\n\n") : undefined, contents };
+}
+
+function toAiUsage(usage: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } | null | undefined): AiTokenUsage | undefined {
+  if (!usage) return undefined;
+  return { promptTokens: usage.promptTokenCount, completionTokens: usage.candidatesTokenCount, totalTokens: usage.totalTokenCount };
 }
 
 function safeJsonParse(text: string): Record<string, unknown> {

@@ -54,6 +54,32 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
+ * Combines a caller's cancellation signal with a hard timeout into one
+ * AbortSignal, and returns it alongside a cleanup function.
+ *
+ * Every provider's stream() method already built this ad-hoc; complete()
+ * previously did NOT use this pattern - it only passed the caller's raw
+ * signal to the SDK call, then separately raced the whole call against a
+ * timeout via withTimeout(). That meant a complete() timeout only made
+ * this process stop *waiting* for the response - the outbound HTTP
+ * request to OpenAI/Anthropic/Gemini kept running in the background until
+ * it naturally finished or errored, wasting the upstream call and
+ * (for paid APIs) still being billed for. Using a real combined signal on
+ * complete() too means a timeout actually cancels the underlying request.
+ *
+ * IMPORTANT: `AbortSignal.timeout(ms)` creates its own internal timer that
+ * keeps running even after the signal is no longer needed. Call the
+ * returned `cleanup()` once the request settles (success or failure) to
+ * clear it and avoid leaking timers on hot paths.
+ */
+export function combineWithTimeout(signal: AbortSignal | undefined, timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => timeoutController.abort(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs);
+  const combined = signal ? AbortSignal.any([signal, timeoutController.signal]) : timeoutController.signal;
+  return { signal: combined, cleanup: () => clearTimeout(timer) };
+}
+
+/**
  * Runs `fn`, retrying on transient failures with exponential backoff.
  * Re-throws immediately on non-retryable errors (4xx other than 429) or
  * once `maxAttempts` is exhausted.

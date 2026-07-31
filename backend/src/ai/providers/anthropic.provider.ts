@@ -8,10 +8,11 @@ import {
   AiMessage,
   AiProvider,
   AiStreamChunk,
+  AiTokenUsage,
   AiToolCall,
   AiToolDefinition,
 } from "./ai-provider.interface";
-import { retryWithBackoff, withTimeout } from "./provider-http.util";
+import { retryWithBackoff, combineWithTimeout } from "./provider-http.util";
 
 /**
  * Production Anthropic Claude provider, backed by the official
@@ -62,10 +63,12 @@ export class AnthropicProvider implements AiProvider {
     const client = this.getClient();
     const { system, messages } = toAnthropicMessages(request.messages);
     const tools = toAnthropicTools(request.tools);
+    const { signal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
-    const response = await retryWithBackoff(
-      () =>
-        withTimeout(
+    let response: Awaited<ReturnType<typeof client.messages.create>>;
+    try {
+      response = await retryWithBackoff(
+        () =>
           client.messages.create(
             {
               model: request.model ?? this.model,
@@ -75,16 +78,17 @@ export class AnthropicProvider implements AiProvider {
               messages,
               tools,
             },
-            { signal: request.signal },
+            { signal },
           ),
-          this.timeoutMs,
-          "Anthropic messages.create",
-        ),
-      { maxAttempts: this.maxRetries + 1, signal: request.signal },
-    ).catch((error) => {
+        { maxAttempts: this.maxRetries + 1, signal: request.signal },
+      );
+    } catch (error) {
       throw new Error(`Anthropic request failed: ${describeError(error)}`);
-    });
+    } finally {
+      cleanup();
+    }
 
+    const usage = toAiUsage(response.usage);
     const textParts = response.content.filter((block): block is Extract<typeof block, { type: "text" }> => block.type === "text");
     const toolUseBlocks = response.content.filter(
       (block): block is Extract<typeof block, { type: "tool_use" }> => block.type === "tool_use",
@@ -99,12 +103,14 @@ export class AnthropicProvider implements AiProvider {
           arguments: (block.input as Record<string, unknown>) ?? {},
         })),
         finishReason: "tool_calls",
+        usage,
       };
     }
 
     return {
       content: textParts.map((b) => b.text).join(""),
       finishReason: response.stop_reason === "max_tokens" ? "length" : "stop",
+      usage,
     };
   }
 
@@ -112,11 +118,7 @@ export class AnthropicProvider implements AiProvider {
     const client = this.getClient();
     const { system, messages } = toAnthropicMessages(request.messages);
     const tools = toAnthropicTools(request.tools);
-
-    // Combine the caller's cancellation signal with a hard timeout so a
-    // stalled upstream stream can't hang the request forever.
-    const timeoutSignal = AbortSignal.timeout(this.timeoutMs);
-    const combinedSignal = request.signal ? AbortSignal.any([request.signal, timeoutSignal]) : timeoutSignal;
+    const { signal: combinedSignal, cleanup } = combineWithTimeout(request.signal, this.timeoutMs);
 
     let anthropicStream: ReturnType<Anthropic["messages"]["stream"]>;
     try {
@@ -136,6 +138,7 @@ export class AnthropicProvider implements AiProvider {
         { maxAttempts: this.maxRetries + 1, signal: request.signal },
       );
     } catch (error) {
+      cleanup();
       throw new Error(`Anthropic streaming request failed: ${describeError(error)}`);
     }
 
@@ -161,10 +164,17 @@ export class AnthropicProvider implements AiProvider {
     } catch (error) {
       this.logger.error(`Anthropic stream interrupted: ${describeError(error)}`);
       throw new Error(`Anthropic streaming request failed: ${describeError(error)}`);
+    } finally {
+      cleanup();
     }
 
+    // finalMessage() resolves once the stream completes and gives us the
+    // assembled Message, including .usage - cheaper than manually tallying
+    // input/output tokens from individual SSE events ourselves.
+    const finalMessage = await anthropicStream.finalMessage();
+    const usage = toAiUsage(finalMessage.usage);
+
     if (sawToolUse) {
-      const finalMessage = await anthropicStream.finalMessage();
       const toolUseBlocks = finalMessage.content.filter(
         (block: ContentBlock): block is Extract<ContentBlock, { type: "tool_use" }> => block.type === "tool_use",
       );
@@ -173,11 +183,19 @@ export class AnthropicProvider implements AiProvider {
         name: block.name,
         arguments: (block.input as Record<string, unknown>) ?? {},
       }));
-      yield { delta: "", done: true, toolCalls, finishReason: "tool_calls" };
+      yield { delta: "", done: true, toolCalls, finishReason: "tool_calls", usage };
     } else {
-      yield { delta: "", done: true, finishReason: hitMaxTokens ? "length" : "stop" };
+      yield { delta: "", done: true, finishReason: hitMaxTokens ? "length" : "stop", usage };
     }
   }
+}
+
+function toAiUsage(usage: { input_tokens?: number | null; output_tokens?: number } | null | undefined): AiTokenUsage | undefined {
+  if (!usage) return undefined;
+  const promptTokens = usage.input_tokens ?? undefined;
+  const completionTokens = usage.output_tokens ?? undefined;
+  const totalTokens = promptTokens !== undefined && completionTokens !== undefined ? promptTokens + completionTokens : undefined;
+  return { promptTokens, completionTokens, totalTokens };
 }
 
 function toAnthropicTools(tools: AiToolDefinition[] | undefined): Tool[] | undefined {
