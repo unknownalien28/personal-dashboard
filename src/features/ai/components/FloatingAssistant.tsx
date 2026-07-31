@@ -20,7 +20,10 @@ import type { StagedUpload } from "@/features/ai/attachments";
 export function FloatingAssistant() {
   const { pathname } = useLocation();
   const { isOpen, isMinimized, open, close, minimize, restore } = useFloatingAssistantStore();
-  const { conversations, activeConversationId, createConversation, setActiveConversation } = useConversationsStore();
+  const conversations = useConversationsStore((s) => s.conversations);
+  const activeConversationId = useConversationsStore((s) => s.activeConversationId);
+  const createConversation = useConversationsStore((s) => s.createConversation);
+  const setActiveConversation = useConversationsStore((s) => s.setActiveConversation);
   const pageModules = useCurrentPageModule();
 
   const [drag, setDrag] = useState({ x: 0, y: 0 });

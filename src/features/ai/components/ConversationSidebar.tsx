@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Search, Plus, Pin, PinOff, Pencil, Trash2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -22,7 +22,7 @@ function sortConversations(list: Conversation[]): Conversation[] {
   });
 }
 
-export function ConversationSidebar({
+function ConversationSidebarInner({
   conversations,
   activeId,
   onSelect,
@@ -182,3 +182,46 @@ export function ConversationSidebar({
     </div>
   );
 }
+
+/**
+ * The `conversations` prop is a brand-new array reference on every store
+ * update (immutable-update pattern in conversations-store.ts) - including
+ * every single token streamed into the active conversation's assistant
+ * message. This sidebar only actually renders id/title/pinned/updatedAt
+ * and a message count per conversation, so a plain React.memo (which does
+ * reference equality on the whole array) would still re-render on every
+ * token. This comparator instead checks only the fields actually rendered,
+ * so streaming text updates no longer re-render the entire sidebar list.
+ *
+ * This does NOT eliminate re-rendering the *active* conversation's message
+ * list itself during streaming (that's necessary - the person needs to see
+ * the text arrive) - it only stops that from cascading into sibling UI
+ * that doesn't need it. See this phase's report for the larger, not-yet-
+ * done architectural fix (splitting high-frequency streaming content out
+ * of the same store slice as conversation list metadata).
+ */
+function sidebarRelevantFieldsEqual(prev: ConversationSidebarProps, next: ConversationSidebarProps): boolean {
+  if (
+    prev.activeId !== next.activeId ||
+    prev.conversations.length !== next.conversations.length ||
+    prev.onSelect !== next.onSelect ||
+    prev.onNewChat !== next.onNewChat ||
+    prev.onTogglePin !== next.onTogglePin ||
+    prev.onRename !== next.onRename ||
+    prev.onDelete !== next.onDelete
+  ) {
+    return false;
+  }
+  return prev.conversations.every((c, i) => {
+    const other = next.conversations[i];
+    return (
+      c.id === other.id &&
+      c.title === other.title &&
+      c.pinned === other.pinned &&
+      c.updatedAt === other.updatedAt &&
+      c.messages.length === other.messages.length
+    );
+  });
+}
+
+export const ConversationSidebar = memo(ConversationSidebarInner, sidebarRelevantFieldsEqual);

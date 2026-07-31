@@ -110,7 +110,8 @@ export const useConversationsStore = create<ConversationsState>()(
               : {
                   ...c,
                   messages: c.messages.map((m) => (m.id === messageId ? { ...m, ...updates } : m)),
-                  updatedAt: new Date().toISOString(),
+                  // Deliberately NOT bumping updatedAt here - see comment above. addMessage()
+                  // already set it correctly when this turn started.
                 }
           ),
         })),

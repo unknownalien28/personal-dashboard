@@ -9,15 +9,13 @@ import type { ModuleKey } from "@/features/ai/context-engine";
 import type { StagedUpload } from "@/features/ai/attachments";
 
 export function AIPage() {
-  const {
-    conversations,
-    activeConversationId,
-    createConversation,
-    setActiveConversation,
-    togglePin,
-    renameConversation,
-    deleteConversation,
-  } = useConversationsStore();
+  const conversations = useConversationsStore((s) => s.conversations);
+  const activeConversationId = useConversationsStore((s) => s.activeConversationId);
+  const createConversation = useConversationsStore((s) => s.createConversation);
+  const setActiveConversation = useConversationsStore((s) => s.setActiveConversation);
+  const togglePin = useConversationsStore((s) => s.togglePin);
+  const renameConversation = useConversationsStore((s) => s.renameConversation);
+  const deleteConversation = useConversationsStore((s) => s.deleteConversation);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
   const lastAssistantMessage = activeConversation
