@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, Sse } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req, Sse } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Observable, from, map, finalize } from "rxjs";
+import type { Request } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { AuthenticatedUser } from "../auth/types/authenticated-user.interface";
@@ -44,8 +45,18 @@ export class AiController {
   })
   @ApiResponse({ status: 201, description: "The assistant's reply, including which provider actually answered." })
   @ApiResponse({ status: 403, description: "AI is disabled in the user's AI Settings." })
-  sendMessage(@CurrentUser() user: AuthenticatedUser, @Body(new ZodValidationPipe(sendMessageSchema)) dto: SendMessageDto) {
-    return this.aiService.sendMessage(user.id, user.email, dto);
+  sendMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(sendMessageSchema)) dto: SendMessageDto,
+    @Req() req: Request,
+  ) {
+    // Same pattern Nest's own SSE machinery uses internally (listen for the
+    // underlying connection closing): if the client navigates away or the
+    // tab closes before the provider responds, stop paying for/waiting on
+    // that request instead of letting it run to completion unobserved.
+    const abortController = new AbortController();
+    req.on("close", () => abortController.abort());
+    return this.aiService.sendMessage(user.id, user.email, dto, abortController.signal);
   }
 
   @Post("messages/stream")

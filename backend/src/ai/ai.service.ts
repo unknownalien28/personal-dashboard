@@ -21,8 +21,8 @@ export class AiService {
     return this.orchestrator.listTools();
   }
 
-  sendMessage(userId: string, userName: string | undefined, dto: SendMessageDto) {
-    return this.orchestrator.sendMessage(userId, userName, dto);
+  sendMessage(userId: string, userName: string | undefined, dto: SendMessageDto, signal?: AbortSignal) {
+    return this.orchestrator.sendMessage(userId, userName, dto, signal);
   }
 
   stream(userId: string, userName: string | undefined, dto: SendMessageDto, signal?: AbortSignal): AsyncGenerator<AiStreamEvent> {

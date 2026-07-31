@@ -182,7 +182,7 @@ export class AiOrchestratorService {
     return !TOOL_CALLING_UNSUPPORTED.has(provider.key);
   }
 
-  async sendMessage(userId: string, userName: string | undefined, dto: SendMessageDto): Promise<SendMessageResult> {
+  async sendMessage(userId: string, userName: string | undefined, dto: SendMessageDto, signal?: AbortSignal): Promise<SendMessageResult> {
     const conversationId =
       dto.conversationId ?? (await this.conversationsService.create(userId, { title: dto.content.slice(0, 60) })).id;
 
@@ -202,6 +202,10 @@ export class AiOrchestratorService {
     let turnMessages: AiMessage[] = [];
 
     for (let iteration = 0; iteration < this.maxToolIterations; iteration++) {
+      if (signal?.aborted) {
+        finalText = "Request cancelled.";
+        break;
+      }
       const toolsAvailable = activeProvider ? this.supportsTools(activeProvider) : true;
       const baseMessages = this.promptManager.buildMessages(
         { userName, moduleHints: dto.moduleHints, toolsAvailable },
@@ -216,7 +220,14 @@ export class AiOrchestratorService {
       let result: Awaited<ReturnType<AiProvider["complete"]>> | undefined;
       for (const candidate of candidatesToTry) {
         try {
-          result = await candidate.complete({ messages, model, temperature, maxTokens, tools: this.supportsTools(candidate) ? tools : undefined });
+          result = await candidate.complete({
+            messages,
+            model,
+            temperature,
+            maxTokens,
+            tools: this.supportsTools(candidate) ? tools : undefined,
+            signal,
+          });
           if (!activeProvider) {
             activeProvider = candidate;
             if (candidate.key !== desiredKey) {

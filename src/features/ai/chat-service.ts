@@ -2,6 +2,7 @@ import { api, streamSse, ApiError } from "@/lib/api/client";
 import { useConversationsStore } from "@/features/ai/conversations-store";
 import { useSettingsStore } from "@/features/profile/settings-store";
 import { buildModuleHints, type ModuleKey } from "@/features/ai/context-engine";
+import { buildMessageWithAttachments, type StagedUpload } from "@/features/ai/attachments";
 import type { ChatAction, ChatMessage } from "@/types/models";
 
 /**
@@ -59,14 +60,20 @@ function adoptBackendId(conversationId: string, backendId: string): void {
 }
 
 /** Runs one backend turn (non-streaming) and settles the assistant message. */
-async function runNonStreaming(conversationId: string, assistantMessageId: string, content: string, moduleHints: string[]): Promise<void> {
+async function runNonStreaming(
+  conversationId: string,
+  assistantMessageId: string,
+  content: string,
+  moduleHints: string[],
+  signal: AbortSignal,
+): Promise<void> {
   const { updateMessage } = useConversationsStore.getState();
   try {
-    const response = await api.post<SendMessageResponse>("/ai/messages", {
-      conversationId: backendConversationId(conversationId),
-      content,
-      moduleHints,
-    });
+    const response = await api.post<SendMessageResponse>(
+      "/ai/messages",
+      { conversationId: backendConversationId(conversationId), content, moduleHints },
+      { signal },
+    );
     adoptBackendId(conversationId, response.conversationId);
 
     const displayText = response.fallbackNote ? `${response.message.content}\n\n_(${response.fallbackNote})_` : response.message.content;
@@ -76,6 +83,13 @@ async function runNonStreaming(conversationId: string, assistantMessageId: strin
       action: lastActionFrom(response.actions),
     });
   } catch (err) {
+    if (signal.aborted) {
+      // Stop was pressed. The backend has no partial text to show for a
+      // non-streaming turn (it's one request/response, not incremental), so
+      // there's nothing to keep - just exit the loading state cleanly.
+      updateMessage(conversationId, assistantMessageId, { status: "complete" });
+      return;
+    }
     updateMessage(conversationId, assistantMessageId, {
       status: "error",
       errorMessage: err instanceof ApiError ? err.message : "Something went wrong reaching Alien.",
@@ -159,23 +173,38 @@ async function runAssistantReply(
     return;
   }
 
-  if (ai.streaming) {
-    const controller = new AbortController();
-    activeStreams.set(assistantMessageId, controller);
-    try {
+  const controller = new AbortController();
+  activeStreams.set(assistantMessageId, controller);
+  try {
+    if (ai.streaming) {
       await runStreaming(conversationId, assistantMessageId, content, hints, controller.signal);
-    } finally {
-      activeStreams.delete(assistantMessageId);
+    } else {
+      await runNonStreaming(conversationId, assistantMessageId, content, hints, controller.signal);
     }
-  } else {
-    await runNonStreaming(conversationId, assistantMessageId, content, hints);
+  } finally {
+    activeStreams.delete(assistantMessageId);
   }
 }
 
-/** Sends a new user message and kicks off the assistant's reply. `forceModules` lets a caller (e.g. an "Ask Alien" button on the Finance page) guarantee that page's context is flagged to the backend even if the wording alone wouldn't trigger it. */
-export async function sendUserMessage(conversationId: string, text: string, forceModules: ModuleKey[] = []): Promise<void> {
+/** Sends a new user message and kicks off the assistant's reply. `forceModules` lets a caller (e.g. an "Ask Alien" button on the Finance page) guarantee that page's context is flagged to the backend even if the wording alone wouldn't trigger it. `uploads` are files already uploaded via ChatInput's file picker/drag-and-drop. */
+export async function sendUserMessage(
+  conversationId: string,
+  text: string,
+  forceModules: ModuleKey[] = [],
+  uploads: StagedUpload[] = [],
+): Promise<void> {
   const { addMessage } = useConversationsStore.getState();
-  addMessage(conversationId, { role: "user", content: text, status: "complete" });
+  // Stored content includes any inlined file text (see buildMessageWithAttachments) -
+  // this is what actually gets sent to the AI, and what gets re-sent verbatim on
+  // retry/regenerate. MessageBubble strips the inlined blocks back out for display
+  // via stripAttachmentBlocks(), showing the attachment chips instead.
+  const contentForAi = buildMessageWithAttachments(text, uploads);
+  addMessage(conversationId, {
+    role: "user",
+    content: contentForAi,
+    status: "complete",
+    attachments: uploads.map((u) => u.attachment),
+  });
 
   const assistantId = addMessage(conversationId, { role: "assistant", content: "", status: "streaming" });
   const history = useConversationsStore.getState().conversations.find((c) => c.id === conversationId)?.messages ?? [];
