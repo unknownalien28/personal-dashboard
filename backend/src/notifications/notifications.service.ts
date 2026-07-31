@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import { CreateNotificationDto, NotificationQuery } from "./dto/notification.schemas";
 
 @Injectable()
@@ -28,8 +29,7 @@ export class NotificationsService {
 
   async markRead(userId: string, id: string, read = true) {
     const notification = await this.prisma.notification.findUnique({ where: { id } });
-    if (!notification) throw new NotFoundException("Notification not found");
-    if (notification.userId !== userId) throw new ForbiddenException();
+    assertOwned(notification, userId, "Notification not found");
     return this.prisma.notification.update({ where: { id }, data: { read } });
   }
 
@@ -44,8 +44,7 @@ export class NotificationsService {
 
   async remove(userId: string, id: string) {
     const notification = await this.prisma.notification.findUnique({ where: { id } });
-    if (!notification) throw new NotFoundException("Notification not found");
-    if (notification.userId !== userId) throw new ForbiddenException();
+    assertOwned(notification, userId, "Notification not found");
     await this.prisma.notification.delete({ where: { id } });
   }
 }

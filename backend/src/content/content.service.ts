@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import { ContentQuery, CreateContentPostDto, UpdateContentPostDto } from "./dto/content.schemas";
 
 @Injectable()
@@ -31,8 +32,7 @@ export class ContentService {
 
   async findOne(userId: string, id: string) {
     const post = await this.prisma.contentPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException("Content post not found");
-    if (post.userId !== userId) throw new ForbiddenException();
+    assertOwned(post, userId, "Content post not found");
     return post;
   }
 

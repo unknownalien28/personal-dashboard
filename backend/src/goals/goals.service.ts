@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import {
   CreateGoalDto,
   CreateMilestoneDto,
@@ -36,8 +37,7 @@ export class GoalsService {
 
   async findOne(userId: string, id: string) {
     const goal = await this.prisma.goal.findUnique({ where: { id }, include: { milestones: true } });
-    if (!goal) throw new NotFoundException("Goal not found");
-    if (goal.userId !== userId) throw new ForbiddenException();
+    assertOwned(goal, userId, "Goal not found");
     return goal;
   }
 

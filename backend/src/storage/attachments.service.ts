@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
+import { assertOwned } from "../common/utils/ownership";
 import { StorageService } from "./storage.service";
 
 export interface AddAttachmentInput {
@@ -17,8 +18,7 @@ export class AttachmentsService {
 
   async addToNote(userId: string, noteId: string, input: AddAttachmentInput) {
     const note = await this.prisma.note.findUnique({ where: { id: noteId } });
-    if (!note) throw new NotFoundException("Note not found");
-    if (note.userId !== userId) throw new ForbiddenException();
+    assertOwned(note, userId, "Note not found");
 
     const key = this.storageService.buildKey(`users/${userId}/notes/${noteId}`, input.filename, input.buffer);
     const meta = await this.storageService.save(key, input.buffer, input.mimeType);
@@ -39,8 +39,7 @@ export class AttachmentsService {
 
   async addToWorkspaceDocument(userId: string, documentId: string, input: AddAttachmentInput) {
     const doc = await this.prisma.workspaceDocument.findUnique({ where: { id: documentId } });
-    if (!doc) throw new NotFoundException("Workspace document not found");
-    if (doc.userId !== userId) throw new ForbiddenException();
+    assertOwned(doc, userId, "Workspace document not found");
 
     const key = this.storageService.buildKey(`users/${userId}/workspace/${documentId}`, input.filename, input.buffer);
     const meta = await this.storageService.save(key, input.buffer, input.mimeType);
@@ -69,8 +68,7 @@ export class AttachmentsService {
 
   async remove(userId: string, attachmentId: string): Promise<void> {
     const attachment = await this.prisma.attachment.findUnique({ where: { id: attachmentId } });
-    if (!attachment) throw new NotFoundException("Attachment not found");
-    if (attachment.userId !== userId) throw new ForbiddenException();
+    assertOwned(attachment, userId, "Attachment not found");
 
     await this.storageService.delete(attachment.storageKey);
     await this.prisma.attachment.delete({ where: { id: attachmentId } });

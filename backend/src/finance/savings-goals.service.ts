@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
+import { assertOwned } from "../common/utils/ownership";
 import { AddContributionDto, CreateSavingsGoalDto, UpdateSavingsGoalDto } from "./dto/finance.schemas";
 
 @Injectable()
@@ -19,8 +20,7 @@ export class SavingsGoalsService {
       where: { id },
       include: { contributions: { orderBy: { date: "desc" } } },
     });
-    if (!goal) throw new NotFoundException("Savings goal not found");
-    if (goal.userId !== userId) throw new ForbiddenException();
+    assertOwned(goal, userId, "Savings goal not found");
     return goal;
   }
 

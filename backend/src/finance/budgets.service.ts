@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
+import { assertOwned } from "../common/utils/ownership";
 import { CreateBudgetDto, UpdateBudgetDto } from "./dto/finance.schemas";
 
 @Injectable()
@@ -12,8 +13,7 @@ export class BudgetsService {
 
   async findOne(userId: string, id: string) {
     const budget = await this.prisma.budget.findUnique({ where: { id } });
-    if (!budget) throw new NotFoundException("Budget not found");
-    if (budget.userId !== userId) throw new ForbiddenException();
+    assertOwned(budget, userId, "Budget not found");
     return budget;
   }
 

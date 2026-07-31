@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
+import { assertOwned } from "../common/utils/ownership";
 import { CreateConversationDto, CreateMessageDto, UpdateConversationDto, UpdateMessageDto } from "./dto/conversation.schemas";
 
 @Injectable()
@@ -21,8 +22,7 @@ export class ConversationsService {
       where: { id },
       include: { messages: { orderBy: { createdAt: "asc" } } },
     });
-    if (!conversation) throw new NotFoundException("Conversation not found");
-    if (conversation.userId !== userId) throw new ForbiddenException();
+    assertOwned(conversation, userId, "Conversation not found");
     return conversation;
   }
 
@@ -85,7 +85,6 @@ export class ConversationsService {
 
   private async assertOwnership(userId: string, conversationId: string): Promise<void> {
     const conversation = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
-    if (!conversation) throw new NotFoundException("Conversation not found");
-    if (conversation.userId !== userId) throw new ForbiddenException();
+    assertOwned(conversation, userId, "Conversation not found");
   }
 }

@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import {
   CreateEventDto,
   CreateHabitDto,
@@ -32,8 +33,7 @@ export class CalendarService {
 
   async findOneEvent(userId: string, id: string) {
     const event = await this.prisma.calendarEvent.findUnique({ where: { id } });
-    if (!event) throw new NotFoundException("Event not found");
-    if (event.userId !== userId) throw new ForbiddenException();
+    assertOwned(event, userId, "Event not found");
     return event;
   }
 
@@ -67,8 +67,7 @@ export class CalendarService {
 
   async findOneHabit(userId: string, id: string) {
     const habit = await this.prisma.habit.findUnique({ where: { id } });
-    if (!habit) throw new NotFoundException("Habit not found");
-    if (habit.userId !== userId) throw new ForbiddenException();
+    assertOwned(habit, userId, "Habit not found");
     return habit;
   }
 

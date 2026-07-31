@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import { CreateNoteDto, NoteQuery, UpdateNoteDto } from "./dto/note.schemas";
 
 @Injectable()
@@ -33,8 +34,7 @@ export class NotesService {
 
   async findOne(userId: string, id: string) {
     const note = await this.prisma.note.findUnique({ where: { id } });
-    if (!note) throw new NotFoundException("Note not found");
-    if (note.userId !== userId) throw new ForbiddenException();
+    assertOwned(note, userId, "Note not found");
     return note;
   }
 

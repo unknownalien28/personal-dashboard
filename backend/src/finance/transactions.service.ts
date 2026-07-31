@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import { CreateTransactionDto, TransactionQuery, UpdateTransactionDto } from "./dto/finance.schemas";
 
 @Injectable()
@@ -30,8 +31,7 @@ export class TransactionsService {
 
   async findOne(userId: string, id: string) {
     const transaction = await this.prisma.transaction.findUnique({ where: { id } });
-    if (!transaction) throw new NotFoundException("Transaction not found");
-    if (transaction.userId !== userId) throw new ForbiddenException();
+    assertOwned(transaction, userId, "Transaction not found");
     return transaction;
   }
 
@@ -72,8 +72,7 @@ export class TransactionsService {
   async remove(userId: string, id: string) {
     await this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findUnique({ where: { id } });
-      if (!transaction) throw new NotFoundException("Transaction not found");
-      if (transaction.userId !== userId) throw new ForbiddenException();
+      assertOwned(transaction, userId, "Transaction not found");
 
       if (transaction.type === "transfer" && transaction.transferToAccountId) {
         await tx.account.update({ where: { id: transaction.accountId }, data: { balance: { increment: transaction.amount } } });

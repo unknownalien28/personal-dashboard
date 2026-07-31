@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import { CreateTaskDto, TaskQuery, UpdateTaskDto } from "./dto/task.schemas";
 
 @Injectable()
@@ -26,8 +27,7 @@ export class TasksService {
 
   async findOne(userId: string, id: string) {
     const task = await this.prisma.task.findUnique({ where: { id } });
-    if (!task) throw new NotFoundException("Task not found");
-    if (task.userId !== userId) throw new ForbiddenException();
+    assertOwned(task, userId, "Task not found");
     return task;
   }
 

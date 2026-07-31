@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { paginate, toSkipTake } from "../common/utils/pagination";
+import { assertOwned } from "../common/utils/ownership";
 import { CreateWorkspaceDocumentDto, UpdateWorkspaceDocumentDto, WorkspaceQuery } from "./dto/workspace.schemas";
 
 @Injectable()
@@ -30,8 +31,7 @@ export class WorkspaceService {
 
   async findOne(userId: string, id: string) {
     const doc = await this.prisma.workspaceDocument.findUnique({ where: { id } });
-    if (!doc) throw new NotFoundException("Document not found");
-    if (doc.userId !== userId) throw new ForbiddenException();
+    assertOwned(doc, userId, "Document not found");
     return doc;
   }
 
