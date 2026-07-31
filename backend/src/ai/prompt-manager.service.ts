@@ -6,7 +6,7 @@ export interface PromptContext {
   userName?: string;
   /** Free-form module context (e.g. "the person is viewing their Finance page"). */
   moduleHints?: string[];
-  /** Whether the resolved provider actually supports tool calling (Ollama currently doesn't). */
+  /** Whether the resolved provider actually supports tool calling. Currently true for every registered provider, including the local demo fallback (which is simply never going to choose to call one — see AiOrchestratorService's TOOL_CALLING_UNSUPPORTED, kept for any future text-only provider). */
   toolsAvailable?: boolean;
 }
 

@@ -48,12 +48,14 @@ export class AiController {
     return this.aiService.sendMessage(user.id, user.email, dto);
   }
 
+  @Post("messages/stream")
   @Sse("messages/stream")
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({
     summary: "Send a chat message to Alien and stream the reply (Server-Sent Events)",
     description:
-      "Same behavior as POST /ai/messages, but streams the response as it's generated: 'token' events for partial text, 'tool_call'/'tool_result' events when Alien takes an action, and a final 'done' event once the reply is fully persisted. Disconnecting the client aborts the in-flight provider request.",
+      "Same behavior as POST /ai/messages, but streams the response as it's generated: 'token' events for partial text, 'tool_call'/'tool_result' events when Alien takes an action, and a final 'done' event once the reply is fully persisted. Disconnecting the client aborts the in-flight provider request." +
+      " Deliberately POST (not the plain GET the @Sse decorator defaults to): the browser's native EventSource API can only send unauthenticated GET requests with no custom body, which doesn't work with our Bearer-token auth or JSON payload — see streamSse() in the frontend's src/lib/api/client.ts.",
   })
   @ApiResponse({ status: 200, description: "text/event-stream of { type, ... } events — see AiStreamEvent." })
   streamMessage(
