@@ -27,7 +27,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const statusCode = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const rawResponse = isHttpException ? exception.getResponse() : null;
-    const message = this.extractMessage(rawResponse, exception);
+    const message = this.extractMessage(rawResponse);
     const error = isHttpException ? exception.name : "InternalServerError";
 
     const body: ErrorBody = {
@@ -47,12 +47,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
     response.status(statusCode).json(body);
   }
 
-  private extractMessage(rawResponse: unknown, exception: unknown): string | string[] {
+  /**
+   * `rawResponse` only exists for Nest `HttpException`s (validation errors,
+   * `NotFoundException`, etc.) — those messages were authored to be
+   * client-safe, so they're passed through as-is. Anything else (a raw
+   * thrown `Error`, a Prisma error, a driver-level exception) is NOT an
+   * `HttpException` and must never have its `.message` sent to the client:
+   * that can leak table/column names, connection details, or stack-adjacent
+   * internals. Those get a generic message here; the real detail still goes
+   * to the server log via `this.logger.error(...)` in `catch()` above.
+   */
+  private extractMessage(rawResponse: unknown): string | string[] {
     if (rawResponse && typeof rawResponse === "object" && "message" in rawResponse) {
       return (rawResponse as { message: string | string[] }).message;
     }
     if (typeof rawResponse === "string") return rawResponse;
-    if (exception instanceof Error) return exception.message;
     return "Internal server error";
   }
 }

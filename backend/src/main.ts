@@ -11,6 +11,31 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
 import { buildLoggerOptions } from "./config/logger.config";
 import { setupSwagger } from "./config/swagger.config";
 
+const INSECURE_DEFAULT_SECRETS = new Set(["dev-access-secret", "dev-refresh-secret"]);
+
+/**
+ * `configuration.ts` falls back to hardcoded `dev-*-secret` values for
+ * `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` so the app still boots locally
+ * with a bare-minimum `.env`. That fallback must never reach a real
+ * deployment — anyone who read this repo's source would know the default
+ * secrets and could forge access/refresh tokens for any user. Fail fast
+ * instead of silently starting an insecure production server.
+ */
+function assertProductionSecretsAreConfigured(config: ConfigService): void {
+  if (config.get<string>("app.env") !== "production") return;
+
+  const accessSecret = config.get<string>("jwt.accessSecret");
+  const refreshSecret = config.get<string>("jwt.refreshSecret");
+  const missingOrDefault =
+    !accessSecret || !refreshSecret || INSECURE_DEFAULT_SECRETS.has(accessSecret) || INSECURE_DEFAULT_SECRETS.has(refreshSecret);
+
+  if (missingOrDefault) {
+    throw new Error(
+      "Refusing to start with NODE_ENV=production: JWT_ACCESS_SECRET and/or JWT_REFRESH_SECRET are unset or still using their insecure development defaults. Set both to strong, unique random values before deploying.",
+    );
+  }
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: WinstonModule.createLogger(buildLoggerOptions()),
@@ -19,6 +44,7 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   // --- Security -------------------------------------------------------
+  assertProductionSecretsAreConfigured(config);
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({
