@@ -15,6 +15,7 @@ import {
   cancelPendingAction,
 } from "@/features/ai/chat-service";
 import { ChatWindow } from "@/features/ai/components/ChatWindow";
+import type { StagedUpload } from "@/features/ai/attachments";
 
 export function FloatingAssistant() {
   const { pathname } = useLocation();
@@ -42,9 +43,9 @@ export function FloatingAssistant() {
     return id;
   }
 
-  function handleSend(text: string, module?: ModuleKeyType) {
+  function handleSend(text: string, module?: ModuleKeyType, uploads?: StagedUpload[]) {
     const modules = module ? Array.from(new Set([...pageModules, module])) : pageModules;
-    void sendUserMessage(ensureConversation(), text, modules);
+    void sendUserMessage(ensureConversation(), text, modules, uploads ?? []);
   }
 
   function handleDragStart(e: ReactPointerEvent<HTMLDivElement>) {

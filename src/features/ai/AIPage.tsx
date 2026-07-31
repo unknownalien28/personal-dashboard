@@ -6,6 +6,7 @@ import { ConversationSidebar } from "@/features/ai/components/ConversationSideba
 import { ChatWindow } from "@/features/ai/components/ChatWindow";
 import { sendUserMessage, regenerateMessage, retryMessage, stopGenerating, confirmPendingAction, cancelPendingAction } from "@/features/ai/chat-service";
 import type { ModuleKey } from "@/features/ai/context-engine";
+import type { StagedUpload } from "@/features/ai/attachments";
 
 export function AIPage() {
   const {
@@ -37,12 +38,12 @@ export function AIPage() {
     createConversation();
   }
 
-  function handleSend(text: string, module?: ModuleKey) {
+  function handleSend(text: string, module?: ModuleKey, uploads?: StagedUpload[]) {
     let conversationId = activeConversationId;
     if (!conversationId) {
       conversationId = createConversation(text);
     }
-    void sendUserMessage(conversationId, text, module ? [module] : []);
+    void sendUserMessage(conversationId, text, module ? [module] : [], uploads ?? []);
   }
 
   function handleRegenerate(messageId: string) {

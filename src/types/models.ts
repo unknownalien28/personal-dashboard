@@ -301,7 +301,18 @@ export interface ChatMessage {
   errorMessage?: string;
   /** Present when the assistant performed a tool action alongside its reply (executed server-side by the AI orchestration layer). */
   action?: ChatAction;
+  /** Files the user attached to this message (uploaded via /storage/upload). Display-only metadata - the actual content (for text-like files) is inlined into the message sent to the backend by chat-service.ts, not re-derived from this. */
+  attachments?: ChatAttachment[];
   createdAt: string;
+}
+
+export interface ChatAttachment {
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  /** Whether this file's text content was read and included in what was sent to the AI (true for small text-like files), vs just referenced by name/link (large or binary files). */
+  contentIncluded: boolean;
 }
 
 export interface Conversation {

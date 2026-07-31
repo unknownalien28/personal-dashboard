@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Bot, Check, Copy, RotateCcw, AlertTriangle } from "lucide-react";
+import { Bot, Check, Copy, RotateCcw, AlertTriangle, FileText } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { useProfileStore } from "@/features/profile/profile-store";
 import { ChatMarkdown } from "./ChatMarkdown";
 import { TypingIndicator } from "./TypingIndicator";
 import { ActionCard } from "./ActionCard";
+import { stripAttachmentBlocks, formatBytes } from "@/features/ai/attachments";
 import type { ChatMessage } from "@/types/models";
 
 interface MessageBubbleProps {
@@ -24,10 +25,11 @@ export function MessageBubble({ message, onRegenerate, onRetry, onConfirmAction,
   const profile = useProfileStore();
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
+  const displayContent = isUser ? stripAttachmentBlocks(message.content) : message.content;
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(message.content);
+      await navigator.clipboard.writeText(displayContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -56,9 +58,28 @@ export function MessageBubble({ message, onRegenerate, onRetry, onConfirmAction,
           {message.status === "streaming" && message.content === "" ? (
             <TypingIndicator />
           ) : isUser ? (
-            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+            <p className="text-sm whitespace-pre-wrap break-words">{displayContent}</p>
           ) : (
             <ChatMarkdown content={message.content} />
+          )}
+
+          {isUser && message.attachments && message.attachments.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5 justify-end">
+              {message.attachments.map((a) => (
+                <a
+                  key={a.url}
+                  href={a.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg bg-white/15 px-2 py-1 text-xs text-white/90 hover:bg-white/25 transition-colors"
+                  title={a.contentIncluded ? "Content included in this message" : "Referenced by link only"}
+                >
+                  <FileText className="h-3 w-3 shrink-0" />
+                  <span className="truncate max-w-[140px]">{a.filename}</span>
+                  <span className="text-white/60">{formatBytes(a.size)}</span>
+                </a>
+              ))}
+            </div>
           )}
 
           {message.status === "error" && (

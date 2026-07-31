@@ -91,6 +91,69 @@ export const api = {
   delete: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: "DELETE" }),
 };
 
+export interface UploadedFileMeta {
+  key: string;
+  size: number;
+  mimeType: string;
+  url: string;
+}
+
+/**
+ * Uploads a file to the existing generic `POST /storage/upload` endpoint
+ * (base64 body - see backend/src/storage/storage.controller.ts), reporting
+ * progress as it goes. Uses XMLHttpRequest rather than fetch specifically
+ * because fetch has no cross-browser-supported upload progress event;
+ * XHR's `upload.onprogress` does.
+ */
+export function uploadFileWithProgress(
+  file: File,
+  dataBase64: string,
+  onProgress: (fraction: number) => void,
+  options: { signal?: AbortSignal } = {},
+): Promise<UploadedFileMeta> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE_URL}/storage/upload`);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    const token = getAccessToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    };
+
+    xhr.onload = () => {
+      let data: unknown;
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        reject(new ApiError(xhr.status, "Upload failed: malformed response from server"));
+        return;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const message = data && typeof data === "object" && "message" in data ? String((data as { message: unknown }).message) : xhr.statusText;
+        reject(new ApiError(xhr.status, message));
+        return;
+      }
+      const unwrapped = data && typeof data === "object" && "data" in data ? (data as { data: unknown }).data : data;
+      resolve(unwrapped as UploadedFileMeta);
+    };
+
+    xhr.onerror = () => reject(new ApiError(0, "Upload failed: network error"));
+    xhr.onabort = () => reject(new DOMException("Upload aborted", "AbortError"));
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        xhr.abort();
+      } else {
+        options.signal.addEventListener("abort", () => xhr.abort(), { once: true });
+      }
+    }
+
+    xhr.send(JSON.stringify({ filename: file.name, mimeType: file.type || "application/octet-stream", dataBase64 }));
+  });
+}
+
 /**
  * Consumes a Server-Sent Events endpoint that requires a POST body and
  * bearer auth (so the standard `EventSource` API doesn't apply — it only

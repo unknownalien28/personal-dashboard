@@ -5,10 +5,11 @@ import { WelcomeScreen } from "./WelcomeScreen";
 import { FollowUpChips } from "./FollowUpChips";
 import type { ChatMessage } from "@/types/models";
 import type { ModuleKey } from "@/features/ai/context-engine";
+import type { StagedUpload } from "@/features/ai/attachments";
 
 interface ChatWindowProps {
   messages: ChatMessage[];
-  onSend: (text: string, module?: ModuleKey) => void;
+  onSend: (text: string, module?: ModuleKey, uploads?: StagedUpload[]) => void;
   onRegenerate: (messageId: string) => void;
   onRetry: (messageId: string) => void;
   onStop: () => void;
@@ -49,12 +50,16 @@ export function ChatWindow({
     onSend(prompt, module as ModuleKey | undefined);
   }
 
+  function handleComposerSend(text: string, uploads: StagedUpload[]) {
+    onSend(text, undefined, uploads);
+  }
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-col flex-1 min-h-0">
         <WelcomeScreen onSuggestionClick={handleAsk} />
         <div className="p-4 max-w-3xl w-full mx-auto">
-          <ChatInput onSend={onSend} isGenerating={isGenerating} onStop={onStop} />
+          <ChatInput onSend={handleComposerSend} isGenerating={isGenerating} onStop={onStop} />
         </div>
       </div>
     );
@@ -82,7 +87,7 @@ export function ChatWindow({
         </div>
       </div>
       <div className="p-4 max-w-3xl w-full mx-auto">
-        <ChatInput onSend={onSend} isGenerating={isGenerating} onStop={onStop} />
+        <ChatInput onSend={handleComposerSend} isGenerating={isGenerating} onStop={onStop} />
       </div>
     </div>
   );
