@@ -279,12 +279,28 @@ export class AiOrchestratorService {
           break;
         } catch (error) {
           const latencyMs = Date.now() - attemptStart;
+          if (signal?.aborted) {
+            // The person clicked Stop (or disconnected) - the resulting
+            // rejection is expected and says nothing about this provider's
+            // health. Recording it as a failure would incorrectly
+            // deprioritize (and after 3 stops, effectively disable for 30s)
+            // a perfectly healthy provider just because someone cancelled a
+            // request, silently pushing later unrelated turns onto Ollama/
+            // Demo. Stop trying further candidates too - nobody's waiting.
+            this.logger.log(`AI turn cancelled: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs}`);
+            break;
+          }
           this.health.recordFailure(candidate.key);
           this.logger.warn(
             `AI turn failed: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs} error="${describeError(error)}"`,
           );
           attemptNotes.push(`"${candidate.key}" failed (${describeError(error)}).`);
         }
+      }
+
+      if (signal?.aborted) {
+        finalText = "Request cancelled.";
+        break;
       }
 
       if (!result) {
@@ -463,6 +479,16 @@ export class AiOrchestratorService {
             break;
           } catch (error) {
             const latencyMs = Date.now() - attemptStart;
+            if (signal?.aborted) {
+              // The person clicked Stop mid-stream (or disconnected). This is
+              // not a provider failure - recording it as one would
+              // incorrectly deprioritize a healthy provider after a few
+              // Stop-button clicks, silently pushing later unrelated turns
+              // onto Ollama/Demo. Just stop; the frontend already knows the
+              // request was cancelled from its own end of the same signal.
+              this.logger.log(`AI stream turn cancelled: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs}`);
+              return;
+            }
             this.health.recordFailure(candidate.key);
             this.logger.warn(
               `AI stream turn failed: provider="${candidate.key}" conversation=${conversationId} latencyMs=${latencyMs} error="${describeError(error)}"`,

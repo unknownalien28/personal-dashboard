@@ -317,3 +317,89 @@ describe("AiOrchestratorService - ProviderHealthService integration", () => {
     expect(openaiStatus?.healthy).toBe(true);
   });
 });
+
+describe("AiOrchestratorService - regression: user-cancelled requests must not count as provider failures", () => {
+  /**
+   * Real bug found during manual QA: clicking Stop mid-request rejected the
+   * in-flight provider call (via the AbortSignal), and the orchestrator's
+   * catch block unconditionally called health.recordFailure() on ANY
+   * error - including this one. After a few Stop-button clicks (or any
+   * other user-cancelled request) on a perfectly healthy provider, it got
+   * deprioritized for 30s exactly as if it had actually been failing,
+   * silently routing unrelated later turns to Ollama/Demo instead
+   * ("'ollama' wasn't available - used 'demo' instead" for no real reason).
+   */
+  function makeAbortSensitiveProvider(key: string): AiProvider {
+    return {
+      key,
+      isConfigured: () => true,
+      complete: async (request: any) => {
+        return new Promise((_resolve, reject) => {
+          request.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        });
+      },
+      stream: async function* (request: any) {
+        await new Promise((_resolve, reject) => {
+          request.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        });
+      },
+    } as AiProvider;
+  }
+
+  it("sendMessage: aborting the request does NOT mark the provider unhealthy", async () => {
+    const health = new ProviderHealthService();
+    const registry = buildRegistryWith([makeAbortSensitiveProvider("gemini")]);
+    const orchestrator = buildOrchestrator(registry, "auto", health);
+
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 10);
+
+    await orchestrator.sendMessage("user-1", "Alien", { content: "hi" } as any, controller.signal);
+
+    expect(health.isHealthy("gemini")).toBe(true);
+    expect(health.getStatus("gemini").consecutiveFailures).toBe(0);
+  });
+
+  it("sendMessage: even 3 separate cancelled requests in a row leave the provider healthy (would have tripped the circuit breaker before the fix)", async () => {
+    const health = new ProviderHealthService();
+    const registry = buildRegistryWith([makeAbortSensitiveProvider("gemini")]);
+    const orchestrator = buildOrchestrator(registry, "auto", health);
+
+    for (let i = 0; i < 3; i++) {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 5);
+      await orchestrator.sendMessage("user-1", "Alien", { content: `attempt ${i}` } as any, controller.signal);
+    }
+
+    expect(health.isHealthy("gemini")).toBe(true);
+  });
+
+  it("stream: aborting mid-stream does NOT mark the provider unhealthy", async () => {
+    const health = new ProviderHealthService();
+    const registry = buildRegistryWith([makeAbortSensitiveProvider("gemini")]);
+    const orchestrator = buildOrchestrator(registry, "auto", health);
+
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 10);
+
+    const events: any[] = [];
+    for await (const event of orchestrator.stream("user-1", "Alien", { content: "hi" } as any, controller.signal)) {
+      events.push(event);
+    }
+
+    expect(health.isHealthy("gemini")).toBe(true);
+    expect(health.getStatus("gemini").consecutiveFailures).toBe(0);
+  });
+
+  it("contrast: a GENUINE provider failure (not caused by the caller's own signal) still correctly marks it unhealthy after 3 failures", async () => {
+    const health = new ProviderHealthService();
+    const registry = buildRegistryWith([makeFailingProvider("gemini", 500, "genuinely broken")]);
+    const orchestrator = buildOrchestrator(registry, "auto", health);
+
+    for (let i = 0; i < 3; i++) {
+      await orchestrator.sendMessage("user-1", "Alien", { content: `attempt ${i}` } as any);
+    }
+
+    expect(health.isHealthy("gemini")).toBe(false);
+  });
+});
