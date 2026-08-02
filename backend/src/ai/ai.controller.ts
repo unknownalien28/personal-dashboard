@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagg
 import { Observable, from, map, finalize } from "rxjs";
 import type { Request } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
+import { SkipResponseTransform } from "../common/decorators/skip-response-transform.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { AuthenticatedUser } from "../auth/types/authenticated-user.interface";
 import { AiService } from "./ai.service";
@@ -61,6 +62,7 @@ export class AiController {
 
   @Post("messages/stream")
   @Sse("messages/stream")
+  @SkipResponseTransform()
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({
     summary: "Send a chat message to Alien and stream the reply (Server-Sent Events)",

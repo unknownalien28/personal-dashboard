@@ -8,6 +8,7 @@ import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
+import { Reflector } from "@nestjs/core";
 import { buildLoggerOptions } from "./config/logger.config";
 import { setupSwagger } from "./config/swagger.config";
 
@@ -77,7 +78,7 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix);
 
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
+  app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor(app.get(Reflector)));
 
   // --- Docs ---------------------------------------------------------------
   setupSwagger(app, apiPrefix);
