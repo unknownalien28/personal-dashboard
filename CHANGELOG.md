@@ -1,4 +1,30 @@
-# CHANGELOG — Phase 2: AI Provider Integration & Orchestration
+# CHANGELOG
+
+## 2026-08-02 — Fix: AI chat response never appeared (SSE double-wrapping)
+
+Root cause: the globally-registered `TransformInterceptor` wrapped every
+response — including the SSE streaming route — in a generic
+`{ success, data }` envelope. The streaming controller already wraps each
+event as `{ data: event }` for Nest's own SSE serializer, so the result
+was double-wrapped, and the frontend's `event.type` checks never matched
+anything. HTTP 200, real data streamed, nothing ever rendered.
+
+Fix: added `@SkipResponseTransform()` (a `SetMetadata`-based decorator)
+and applied it to the streaming route; `TransformInterceptor` now checks
+for it via `Reflector` and passes SSE responses through unwrapped.
+Non-streaming routes are unaffected.
+
+Also fixed: the Vercel build was blocked by the obsolete frontend AI
+provider layer being accidentally reintroduced by a commit that copied an
+old project snapshot over the repo. Deleted again, and added
+`scripts/check-no-legacy-ai-provider-layer.cjs` as a permanent build-time
+guard against recurrence.
+
+Full details: `DEVELOPMENT_REPORT_2026-08-02-sse-fix.md`.
+
+---
+
+# Phase 2: AI Provider Integration & Orchestration
 
 This phase turns Alien from a chatbot stub into AlienOS's real AI operating
 layer: three production AI providers behind one abstraction, a hybrid
