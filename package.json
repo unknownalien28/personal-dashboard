@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/check-no-legacy-ai-provider-layer.cjs && tsc -b && vite build",
+    "check:no-legacy-ai": "node scripts/check-no-legacy-ai-provider-layer.cjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
