@@ -59,7 +59,7 @@ describe("AI streaming route - actual SSE wire format (regression)", () => {
     const raw = await serialize([
       { type: "token", delta: "Hello" },
       { type: "token", delta: ", world!" },
-      { type: "done", conversationId: "conv-1", provider: "openai", usage: { promptTokens: 5, completionTokens: 3, totalTokens: 8 } },
+      { type: "done", conversationId: "conv-1", provider: "gemini", usage: { promptTokens: 5, completionTokens: 3, totalTokens: 8 } },
     ]);
 
     const events = extractDataLines(raw) as Array<{ type?: string; delta?: string }>;

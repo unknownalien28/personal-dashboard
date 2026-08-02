@@ -33,15 +33,8 @@ export interface AppConfig {
     from: string;
   };
   ai: {
-    defaultProvider: string;
-    openaiApiKey?: string;
-    openaiModel: string;
-    anthropicApiKey?: string;
-    anthropicModel: string;
     geminiApiKey?: string;
     geminiModel: string;
-    ollamaBaseUrl?: string;
-    ollamaModel: string;
     requestTimeoutMs: number;
     maxRetries: number;
     maxToolIterations: number;
@@ -98,15 +91,9 @@ export default (): AppConfig => ({
     from: process.env.SMTP_FROM ?? "AlienOS <no-reply@alienos.dev>",
   },
   ai: {
-    // Gemini is the primary/default provider (Phase 2). "AI_DEFAULT_PROVIDER"
-    // lets an operator override the fallback provider without a redeploy.
-    defaultProvider: process.env.AI_DEFAULT_PROVIDER || "gemini",
-    openaiApiKey: process.env.AI_OPENAI_API_KEY || undefined,
-    openaiModel: process.env.AI_OPENAI_MODEL || "gpt-4.1-mini",
-    anthropicApiKey: process.env.AI_ANTHROPIC_API_KEY || undefined,
-    anthropicModel: process.env.AI_ANTHROPIC_MODEL || "claude-sonnet-4-5",
-    // Primary provider. Per Phase 2: read from GEMINI_API_KEY. AI_GEMINI_API_KEY
-    // is kept as a fallback for anyone who set it up during Phase 1/2 planning.
+    // Gemini is AlienOS's only AI provider (see MIGRATION_REPORT_2026-08-02-single-provider.md).
+    // Read from GEMINI_API_KEY; AI_GEMINI_API_KEY is kept as a fallback for
+    // anyone who set it up during earlier phases.
     geminiApiKey: process.env.GEMINI_API_KEY || process.env.AI_GEMINI_API_KEY || undefined,
     // Default kept in sync with Google's currently-supported stable models
     // (see https://ai.google.dev/gemini-api/docs/models and .../deprecations).
@@ -114,11 +101,6 @@ export default (): AppConfig => ({
     // is the current GA "flash" tier default. Override with AI_GEMINI_MODEL
     // (no redeploy needed) the moment Google ships a newer default.
     geminiModel: process.env.AI_GEMINI_MODEL || "gemini-3.6-flash",
-    // Ollama is the official offline/local provider. Read plain OLLAMA_*
-    // names first (per the hybrid-architecture spec); AI_OLLAMA_* is kept
-    // as a fallback for anyone who set that up during earlier phases.
-    ollamaBaseUrl: process.env.OLLAMA_BASE_URL || process.env.AI_OLLAMA_BASE_URL || "http://localhost:11434",
-    ollamaModel: process.env.OLLAMA_MODEL || process.env.AI_OLLAMA_MODEL || "llama3.2:3b",
     requestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS ?? "30000", 10),
     maxRetries: parseInt(process.env.AI_MAX_RETRIES ?? "2", 10),
     maxToolIterations: parseInt(process.env.AI_MAX_TOOL_ITERATIONS ?? "4", 10),

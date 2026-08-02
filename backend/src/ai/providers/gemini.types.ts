@@ -1,20 +1,26 @@
 /**
- * Every provider (OpenAI, Anthropic, Gemini, Ollama, ...) implements this
- * contract. It supports plain chat completion, token streaming, and
- * tool/function calling so the orchestration layer (see ../orchestrator)
- * can drive multi-turn "the model asked to run a tool" loops identically
- * regardless of which vendor is behind it.
+ * Shared request/response shapes for talking to Gemini (see
+ * ../providers/gemini.provider.ts). AlienOS calls Gemini directly - there
+ * is deliberately no provider interface/registry here for swapping in
+ * other vendors. These types exist because the orchestration layer
+ * (conversation history, tool-calling loop, streaming, token accounting)
+ * is written against a plain request-in/response-out shape rather than
+ * Gemini's own SDK types directly, which keeps that logic readable and
+ * makes it easy to unit-test with a fake instead of the real SDK.
+ *
+ * If AlienOS needs to support another provider again in the future, see
+ * MIGRATION_REPORT_2026-08-02-single-provider.md for what that would
+ * involve reintroducing.
  */
 
-/** A JSON-Schema object describing a tool's input. Kept generic (not a
- * vendor-specific type) so the same definition can be translated for
- * OpenAI, Anthropic, and Gemini without the tool authors caring. */
+/** A JSON-Schema object describing a tool's input, in the shape Gemini's
+ * SDK expects (FunctionDeclaration.parametersJsonSchema). */
 export interface JsonSchemaObject {
   type: "object";
   properties: Record<string, unknown>;
   required?: string[];
   additionalProperties?: boolean;
-  /** Index signature so this structurally satisfies each SDK's own JSON-schema-ish parameter type (Anthropic's Tool.InputSchema, OpenAI's FunctionParameters) without needing per-provider casts. */
+  /** Index signature so this structurally satisfies Gemini SDK's own JSON-schema-ish parameter type (FunctionDeclaration.parametersJsonSchema) without needing a cast. */
   [key: string]: unknown;
 }
 
@@ -57,10 +63,9 @@ export interface AiCompletionRequest {
 export type AiFinishReason = "stop" | "tool_calls" | "length" | "error";
 
 /**
- * Token counts as reported by the provider itself. All optional since not
- * every provider/path can supply every field (e.g. Ollama has no direct
- * "total" field, some streaming paths only get usage on the final chunk,
- * and a provider that fails before responding has none at all).
+ * Token counts as reported by Gemini itself. All optional since a request
+ * that fails before responding has none at all, and some paths only
+ * report usage on the final chunk.
  */
 export interface AiTokenUsage {
   promptTokens?: number;
@@ -84,15 +89,3 @@ export interface AiStreamChunk {
   /** Only ever present on the final chunk (done=true), when the provider/SDK exposes it for its streaming API. */
   usage?: AiTokenUsage;
 }
-
-export interface AiProvider {
-  readonly key: string;
-  /** Whether this provider has everything it needs (e.g. an API key) to actually be called. */
-  isConfigured(): boolean;
-  /** Non-streaming completion. Supports tool calling via `request.tools`. */
-  complete(request: AiCompletionRequest): Promise<AiCompletionResult>;
-  /** Streaming completion — yields incremental text chunks; the last chunk has done=true. */
-  stream(request: AiCompletionRequest): AsyncGenerator<AiStreamChunk>;
-}
-
-export const AI_PROVIDER_REGISTRY = "AI_PROVIDER_REGISTRY";

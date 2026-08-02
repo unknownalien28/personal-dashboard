@@ -44,7 +44,7 @@ src/
   notifications/    in-app notifications
   search/           lightweight cross-entity search
   storage/          local file storage abstraction (S3-ready)
-  ai/                provider abstraction, demo provider, prompt manager, AiService (no real providers yet)
+  ai/                Gemini provider, orchestrator (tool-calling loop, streaming, conversation memory), prompt manager, tools
   common/            filters, interceptors, decorators, pipes, guards, pagination
   config/            env configuration, logger, swagger setup
   database/          PrismaService + PrismaModule
@@ -62,17 +62,38 @@ src/
 Every route requires a valid access token by default (global `JwtAuthGuard`).
 Mark a route `@Public()` to exempt it.
 
-## AI module — intentionally minimal
+## AI module
 
-Per the Phase 9 brief, **no real AI providers are implemented**. `ai/` ships:
-- `AiProvider` interface (`complete` + `stream`)
-- `DemoAiProvider` — deterministic, local-only responses (no network calls)
-- `AiProviderRegistry` — where OpenAI/Anthropic/Gemini/Ollama providers will register later
-- `PromptManagerService` — centralized system-prompt construction
-- `AiService` — persists messages via `ConversationsService`, then asks the
-  resolved provider (currently only `demo`) for a reply. Both a synchronous
-  and an SSE streaming code path exist and are exercised by the `demo`
-  provider today.
+AlienOS's AI assistant ("Alien") is powered by **Google Gemini — the only AI
+provider**. There is deliberately no provider selection, priority chain, or
+health-based fallback; see `MIGRATION_REPORT_2026-08-02-single-provider.md`
+for why, and `docs/ARCHITECTURE.md` for the full pipeline diagram.
+
+- `providers/gemini.provider.ts` — the only provider. Wraps the official
+  `@google/genai` SDK: chat completion, streaming, tool/function calling,
+  token usage, retries with backoff, and a real request timeout.
+- `providers/gemini.types.ts` — the shared request/response shapes the rest
+  of the AI layer is written against (not a multi-provider abstraction —
+  just a stable contract independent of the raw SDK types).
+- `orchestrator.service.ts` (`AiOrchestratorService`) — builds the
+  prompt/context, drives the tool-calling loop, persists conversation
+  memory, tracks token usage, and produces the result the controller
+  forwards to the frontend (JSON or SSE). If Gemini isn't configured or a
+  request genuinely fails, this throws a clear, user-facing error — it
+  never falls back to a canned response.
+- `prompt-manager.service.ts` — system-prompt construction and
+  conversation-history windowing.
+- `tools/` — 15 tools (create/update/delete task, notes, goals, habits,
+  calendar events, transactions, dashboard stats, search, notifications)
+  the model can call to take real actions in AlienOS.
+- `ai.service.ts` / `ai.controller.ts` — `POST /ai/messages` (JSON),
+  `POST /ai/messages/stream` (SSE), `GET /ai/status` (is Gemini
+  configured?), `GET /ai/tools`.
+
+Configuration is entirely environment-driven — see `.env.example`:
+`GEMINI_API_KEY` (required to enable AI chat), `AI_GEMINI_MODEL`,
+`AI_REQUEST_TIMEOUT_MS`, `AI_MAX_RETRIES`, `AI_MAX_TOOL_ITERATIONS`,
+`AI_MAX_HISTORY_MESSAGES`.
 
 ## Known environment limitation (sandbox only)
 

@@ -88,10 +88,10 @@ export class UsersService {
   }
 
   /**
-   * Used by the AI orchestrator to resolve the user's preferred provider
+   * Used by the AI orchestrator to resolve the user's AI preferences
    * without pulling the full `me()` payload. Falls back to schema defaults
-   * (enabled=true, provider=gemini) if the row somehow doesn't exist yet —
-   * it normally does, created at signup (see AuthService.register).
+   * (enabled=true) if the row somehow doesn't exist yet - it normally
+   * does, created at signup (see AuthService.register).
    */
   async getAISettings(userId: string) {
     const settings = await this.prisma.aISettings.findUnique({ where: { userId } });
@@ -100,7 +100,6 @@ export class UsersService {
         id: "",
         userId,
         enabled: true,
-        provider: "auto" as const,
         model: "",
         streaming: true,
         temperature: 0.7,

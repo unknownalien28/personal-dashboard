@@ -262,18 +262,15 @@ export interface PreferenceSettings {
    Alien Assistant - AI provider + conversation types
    =========================================================================== */
 
-export type AIProviderKey = "auto" | "demo" | "openai" | "anthropic" | "gemini" | "ollama";
-
 /**
  * Persisted locally as a fast-access cache and synced with the backend's
  * AISettings (GET /users/me, PATCH /users/me/settings/ai) — the backend is
- * the source of truth. No API key lives here: keys are configured
- * server-side only (see backend .env.example) and the frontend never talks
- * to Gemini/OpenAI/Anthropic/Ollama directly.
+ * the source of truth. No API key lives here: Gemini is AlienOS's only AI
+ * provider, configured server-side only (see backend .env.example), and
+ * the frontend never talks to it directly.
  */
 export interface AISettings {
   enabled: boolean;
-  provider: AIProviderKey;
   model: string;
   streaming: boolean;
   temperature: number;

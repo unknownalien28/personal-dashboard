@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-08-02 (later) — Architecture simplification: Gemini-only AI provider
+
+Removed the entire multi-provider system (OpenAI, Anthropic, Ollama, Demo,
+Auto routing, `ProviderHealthService`/circuit breaker, provider priority
+and fallback logic) in favor of a single, direct Gemini integration.
+Gemini unavailable/failing now returns a clear, honest error — never a
+silent fallback or fabricated response.
+
+Kept: streaming, Stop/cancellation, conversation memory, attachments,
+token usage accounting, structured logging, request-level error handling
+(timeout, retry-on-transient-failure).
+
+Full details, reasoning, and how to reintroduce multi-provider support
+later if desired: `MIGRATION_REPORT_2026-08-02-single-provider.md`. AI
+pipeline documentation: `docs/ARCHITECTURE.md`.
+
+---
+
 ## 2026-08-02 (later) — QA fixes: Stop-button/health-service miscounting, large upload rejection
 
 Two real bugs found via manual QA, both fixed and covered by new

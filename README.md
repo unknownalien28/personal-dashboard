@@ -2,21 +2,34 @@
 
 **Your Personal Productivity Operating System.**
 
-Tasks, notes, calendar, goals, finance, content planning, and an AI assistant —
-in one clean, fast, private app. All data stays in your browser.
+Tasks, notes, calendar, goals, finance, content planning, and an AI assistant
+("Alien") — in one clean, fast, private app.
+
+AlienOS is a full-stack application: a React frontend talking to a real
+NestJS + PostgreSQL backend (see `backend/README.md`). The AI assistant is
+powered by Google Gemini — see `docs/ARCHITECTURE.md` for the full AI
+pipeline and `MIGRATION_REPORT_2026-08-02-single-provider.md` for why Gemini
+is the only provider.
 
 ## Stack
 
+**Frontend**
 - **React 19 + TypeScript** — UI and type safety
 - **Vite** — dev server and build tool
 - **Tailwind CSS v4** — styling
 - **React Router** — navigation between modules
-- **Zustand** — state management, with a `persist` middleware writing through
-  a storage abstraction layer (see below)
+- **Zustand** — state management, with a `persist` middleware for
+  device-local UI preferences (theme, layout) — application data itself is
+  persisted server-side (see below)
 - **date-fns** — date math for Calendar and Finance (recurrence, period ranges)
 - **Recharts** — progress and finance charts
 - **lucide-react** — icons
 - **vite-plugin-pwa** — installable PWA support (manifest, service worker, offline caching)
+
+**Backend** (`backend/`)
+- **NestJS + TypeScript**, **PostgreSQL** via Prisma, JWT auth
+- **Google Gemini** — AlienOS's AI provider, via the official `@google/genai` SDK
+- Full details: `backend/README.md`
 
 ## Running locally
 
@@ -44,24 +57,19 @@ npm run preview   # serves the production build locally, to sanity-check it
 
 Every push to your main branch will auto-deploy.
 
-## Storage architecture
+## Data & storage architecture
 
-All app data (tasks, notes, events, habits, finances, etc.) currently persists
-in the browser's `localStorage`, namespaced under the `dashboard:` prefix.
+Application data (tasks, notes, events, habits, finances, conversations,
+etc.) is persisted server-side in PostgreSQL via the backend — not in
+`localStorage`. The frontend's Zustand `persist` middleware is used only for
+device-local UI state (theme, layout preferences, draft/staged UI state) via:
 
-This is intentionally abstracted behind a single interface so it can be
-swapped for a real backend (e.g. Supabase) later **without touching any
-feature code**:
-
-- `src/lib/storage/types.ts` — the `StorageAdapter` interface every backend
-  must implement (`getItem` / `setItem` / `removeItem`)
+- `src/lib/storage/types.ts` — the `StorageAdapter` interface
 - `src/lib/storage/localStorageAdapter.ts` — today's implementation
 - `src/lib/storage/index.ts` — the single export every store imports from
 
-To migrate later: write a new adapter (e.g. `supabaseAdapter.ts`) implementing
-the same interface, and change one import line in `index.ts`. Every Zustand
-store in the app already reads/writes through this layer via `persist`, so
-nothing else needs to change.
+All real data operations go through the backend's REST API
+(`src/lib/api/client.ts`) with JWT auth — see `backend/README.md`.
 
 ## Mobile-first & PWA
 
@@ -92,15 +100,17 @@ since HTTPS is required for service workers and Vercel provides it by default.
 
 ## Module status
 
-Fully implemented: Tasks, Notes, Calendar, Goals, Finance, Profile & Settings, Home.
-**Content Planner and AI Assistant are placeholder pages only** — routed and
-reachable in the nav, but not yet built out. If you pick this project up,
-those two are the obvious next modules.
+Fully implemented: Tasks, Notes, Calendar, Goals, Finance, Profile & Settings,
+Home, and the AI Assistant (Alien) — real chat, streaming, file attachments,
+and tool-calling backed by Gemini. Content Planner is implemented for
+Alien Footy-style social content.
 
 ## Environment variables
 
-None. This is a fully client-side app — there's no server, no API keys, and no
-`.env` file to configure. All data lives in the browser's `localStorage`.
+The frontend itself needs only `VITE_API_URL` (defaults to
+`http://localhost:4000/api`) to point at the backend. The backend has its own
+`.env` — see `backend/.env.example` and `backend/README.md`, and
+`docs/ARCHITECTURE.md` for the AI-specific variables (`GEMINI_API_KEY`, etc).
 
 ## Folder structure
 

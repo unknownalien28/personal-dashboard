@@ -3,42 +3,23 @@ import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useSettingsStore } from "@/features/profile/settings-store";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils/cn";
-import type { AIProviderKey } from "@/types/models";
 
-interface ProviderOption {
-  key: AIProviderKey;
-  label: string;
-  description: string;
-}
-
-// Static labels/descriptions for the UI — actual availability (whether each
-// provider has an API key configured) comes from the backend at runtime via
-// GET /ai/providers, never from anything stored in the browser.
-const PROVIDER_OPTIONS: ProviderOption[] = [
-  { key: "auto", label: "Auto (recommended)", description: "Gemini first, then the local Ollama model, then any other configured provider." },
-  { key: "gemini", label: "Gemini", description: "Google's Gemini — AlienOS's primary cloud provider." },
-  { key: "ollama", label: "Ollama (local)", description: "Runs fully offline on your own machine — no data leaves your network." },
-  { key: "openai", label: "OpenAI", description: "GPT models via OpenAI." },
-  { key: "anthropic", label: "Anthropic", description: "Claude models via Anthropic." },
-  { key: "demo", label: "Demo", description: "A local, deterministic responder — no AI provider required. Useful for trying the UI." },
-];
-
-interface ProviderStatus {
-  key: string;
+interface AiStatus {
+  provider: string;
   configured: boolean;
 }
 
 export function AISection() {
   const { ai, updateAISettings } = useSettingsStore();
-  const [status, setStatus] = useState<ProviderStatus[] | null>(null);
+  const [status, setStatus] = useState<AiStatus | null>(null);
   const [statusError, setStatusError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     api
-      .get<{ providers: ProviderStatus[] }>("/ai/providers")
+      .get<AiStatus>("/ai/status")
       .then((res) => {
-        if (!cancelled) setStatus(res.providers);
+        if (!cancelled) setStatus(res);
       })
       .catch(() => {
         if (!cancelled) setStatusError(true);
@@ -47,11 +28,6 @@ export function AISection() {
       cancelled = true;
     };
   }, []);
-
-  function statusFor(key: AIProviderKey): ProviderStatus | undefined {
-    if (key === "auto") return undefined;
-    return status?.find((s) => s.key === key);
-  }
 
   return (
     <div className="flex flex-col gap-6 max-w-lg">
@@ -69,55 +45,37 @@ export function AISection() {
       </label>
 
       <div>
-        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Provider</h3>
+        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">AI provider</h3>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-          API keys are configured server-side by whoever runs AlienOS — the browser never talks to Gemini/OpenAI/Anthropic/Ollama directly, and never
-          stores a key.
+          Alien is powered by Google Gemini. The API key is configured server-side by whoever runs AlienOS — the browser never talks to
+          Gemini directly, and never stores a key.
         </p>
-        <div className="grid grid-cols-1 gap-2">
-          {PROVIDER_OPTIONS.map((p) => {
-            const s = statusFor(p.key);
-            return (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => updateAISettings({ provider: p.key })}
-                aria-pressed={ai.provider === p.key}
-                className={cn(
-                  "flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-left transition-colors duration-150",
-                  ai.provider === p.key
-                    ? "border-accent-400 bg-accent-50 dark:bg-accent-500/15"
-                    : "border-[var(--color-border)] hover:bg-zinc-100 dark:hover:bg-zinc-800",
-                )}
-              >
-                <span className="flex flex-col gap-0.5">
-                  <span
-                    className={cn(
-                      "text-sm font-medium",
-                      ai.provider === p.key ? "text-accent-700 dark:text-accent-400" : "text-zinc-700 dark:text-zinc-300",
-                    )}
-                  >
-                    {p.label}
-                  </span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">{p.description}</span>
-                </span>
-                {s && (
-                  <span
-                    className={cn(
-                      "flex items-center gap-1 text-xs shrink-0",
-                      s.configured ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-500",
-                    )}
-                  >
-                    {s.configured ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    {s.configured ? "Configured" : "Not configured"}
-                  </span>
-                )}
-                {!s && p.key === "auto" && status === null && !statusError && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" />}
-              </button>
-            );
-          })}
+        <div
+          className={cn(
+            "flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5",
+            "border-[var(--color-border)]",
+          )}
+        >
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Gemini</span>
+          {status && (
+            <span
+              className={cn(
+                "flex items-center gap-1 text-xs shrink-0",
+                status.configured ? "text-emerald-600 dark:text-emerald-400" : "text-danger",
+              )}
+            >
+              {status.configured ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+              {status.configured ? "Configured" : "Not configured"}
+            </span>
+          )}
+          {!status && !statusError && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" />}
         </div>
-        {statusError && <p className="text-xs text-danger mt-2">Couldn't reach the backend to check provider status.</p>}
+        {statusError && <p className="text-xs text-danger mt-2">Couldn't reach the backend to check AI status.</p>}
+        {status && !status.configured && (
+          <p className="text-xs text-danger mt-2">
+            Gemini isn't configured yet — chat will show a clear error until GEMINI_API_KEY is set in the backend environment.
+          </p>
+        )}
       </div>
 
       <div>
@@ -126,11 +84,11 @@ export function AISection() {
           type="text"
           value={ai.model}
           onChange={(e) => updateAISettings({ model: e.target.value })}
-          placeholder="Leave blank to use the provider's default model"
+          placeholder="Leave blank to use the server's default model"
           className="w-full h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:ring-2 focus:ring-accent-400 font-mono"
         />
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">
-          e.g. gemini-2.5-flash, gpt-4.1-mini, claude-sonnet-4-5, llama3.2:3b — set by whoever runs the server unless overridden here.
+          e.g. gemini-3.6-flash — set by whoever runs the server (AI_GEMINI_MODEL) unless overridden here.
         </p>
       </div>
 

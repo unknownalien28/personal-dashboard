@@ -72,7 +72,7 @@ export class UsersController {
   @ApiOperation({
     summary: "Update the current user's AI Settings",
     description:
-      "Controls whether Alien is enabled at all, which provider is preferred (Gemini by default for new accounts), and default model/temperature/maxTokens/streaming behavior. The AI orchestration layer reads this on every request and falls back gracefully if the preferred provider isn't configured.",
+      "Controls whether Alien is enabled at all, and default model/temperature/maxTokens/streaming behavior. The AI orchestration layer reads this on every request; Gemini is AlienOS's only AI provider (see backend .env.example).",
   })
   updateAISettings(
     @CurrentUser() user: AuthenticatedUser,

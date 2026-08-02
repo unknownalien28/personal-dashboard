@@ -37,7 +37,7 @@ describe("combineWithTimeout (regression: timeouts must actually cancel the outb
     const { signal, cleanup } = combineWithTimeout(undefined, 20);
 
     // Simulate a provider SDK call that respects an AbortSignal, the way the
-    // real OpenAI/Anthropic/Gemini/Ollama calls do via { signal }.
+    // real Gemini calls do via { signal }.
     let wasAborted = false;
     const simulatedProviderCall = new Promise((resolve, reject) => {
       const longRunningTimer = setTimeout(() => resolve("should never resolve - the request should be cancelled first"), 5_000);

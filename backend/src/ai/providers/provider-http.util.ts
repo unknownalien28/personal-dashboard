@@ -1,13 +1,12 @@
 /**
- * Small shared helpers for calling external AI provider APIs safely:
+ * Small shared helpers for calling the Gemini API safely:
  * - retryWithBackoff: retries transient failures (rate limits, 5xx, network
  *   blips) with exponential backoff + jitter, and gives up immediately on
  *   errors that a retry can't fix (bad API key, invalid request, etc).
- * - withTimeout: races a provider call against a timeout so a hung upstream
+ * - withTimeout: races a call against a timeout so a hung upstream
  *   request can't hang an AlienOS request forever.
  * - isRetryableStatus / extractHttpStatus: best-effort status extraction
- *   that works across the OpenAI, Anthropic, and Google GenAI SDK error
- *   shapes without importing all three SDKs into one file.
+ *   from the Google GenAI SDK's error shape.
  */
 
 export interface RetryOptions {
@@ -57,15 +56,15 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
  * Combines a caller's cancellation signal with a hard timeout into one
  * AbortSignal, and returns it alongside a cleanup function.
  *
- * Every provider's stream() method already built this ad-hoc; complete()
+ * Gemini's stream() method already built this ad-hoc; complete()
  * previously did NOT use this pattern - it only passed the caller's raw
  * signal to the SDK call, then separately raced the whole call against a
  * timeout via withTimeout(). That meant a complete() timeout only made
  * this process stop *waiting* for the response - the outbound HTTP
- * request to OpenAI/Anthropic/Gemini kept running in the background until
- * it naturally finished or errored, wasting the upstream call and
- * (for paid APIs) still being billed for. Using a real combined signal on
- * complete() too means a timeout actually cancels the underlying request.
+ * request to Gemini kept running in the background until it naturally
+ * finished or errored, wasting the upstream call and still being billed
+ * for. Using a real combined signal on complete() too means a timeout
+ * actually cancels the underlying request.
  *
  * IMPORTANT: `AbortSignal.timeout(ms)` creates its own internal timer that
  * keeps running even after the signal is no longer needed. Call the

@@ -220,28 +220,15 @@ model PreferenceSettings {
   @@map("preference_settings")
 }
 
-enum AIProviderKey {
-  /// Automatic mode (default): Gemini first, then Ollama, then the rest of the fallback chain. See AiOrchestratorService.
-  auto
-  demo
-  openai
-  anthropic
-  gemini
-  ollama
-}
-
-/// NOTE: apiKey is intentionally NOT stored server-side in Phase 9 — the
-/// frontend keeps provider API keys local to the browser. This row only
-/// persists the non-secret preferences. See AI PREPARATION section of the
-/// phase brief: providers are not implemented yet.
+/// NOTE: apiKey is intentionally NOT stored server-side - Gemini's key
+/// lives only in the backend's environment (GEMINI_API_KEY). This row only
+/// persists the non-secret preferences.
 model AISettings {
   id         String        @id @default(uuid())
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     String        @unique
-  /// Master on/off switch for the AI assistant, independent of which provider is selected.
+  /// Master on/off switch for the AI assistant.
   enabled    Boolean       @default(true)
-  /// "auto" is the default for all new users — see Phase 2 "PRIMARY AI PROVIDER" / hybrid architecture.
-  provider   AIProviderKey @default(auto)
   model      String        @default("")
   streaming  Boolean       @default(true)
   temperature Float        @default(0.7)

@@ -58,7 +58,6 @@ const defaultPreferences: PreferenceSettings = {
 
 const defaultAISettings: AISettings = {
   enabled: true,
-  provider: "auto",
   model: "",
   streaming: true,
   temperature: 0.7,
@@ -81,17 +80,18 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({ ai: { ...s.ai, ...updates } }));
         if (options?.sync === false) return;
         // Fire-and-forget: the backend is the source of truth (see
-        // AiOrchestratorService.resolveProvider); local state already
-        // updated optimistically above so the UI responds instantly.
+        // AiOrchestratorService); local state already updated
+        // optimistically above so the UI responds instantly.
         api.patch("/users/me/settings/ai", updates).catch(() => {
           // Non-fatal — the next successful sync (or app reload, which
           // re-hydrates from the backend) will reconcile any drift.
         });
       },
       resetSettings: () =>
-        // Deliberately does not reset `ai` - the user's provider/model
-        // preference is synced with the backend and shouldn't disappear
-        // just because someone resets appearance/notification/preference defaults.
+        // Deliberately does not reset `ai` - the user's model/temperature/
+        // token preferences are synced with the backend and shouldn't
+        // disappear just because someone resets appearance/notification/
+        // preference defaults.
         set({
           appearance: defaultAppearance,
           notifications: defaultNotifications,

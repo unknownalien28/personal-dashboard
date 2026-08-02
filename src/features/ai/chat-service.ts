@@ -7,12 +7,12 @@ import type { ChatAction, ChatMessage } from "@/types/models";
 
 /**
  * Chat transport layer. This is the ONLY place in the frontend that talks
- * to AI — and it talks exclusively to AlienOS's own backend (`/ai/messages`
- * and `/ai/messages/stream`), never to Gemini/OpenAI/Anthropic/Ollama
- * directly. Provider selection, API keys, context injection, conversation
- * memory, tool execution, retries, and fallback all live server-side (see
- * backend/src/ai/orchestrator.service.ts) — this file just renders
- * whatever the backend decides into the local conversation store.
+ * to AI — and it talks exclusively to AlienOS's own backend
+ * (`/ai/messages` and `/ai/messages/stream`), never to Gemini directly.
+ * The API key, prompt/context construction, conversation memory, and tool
+ * execution all live server-side (see backend/src/ai/orchestrator.service.ts)
+ * — this file just renders whatever the backend returns into the local
+ * conversation store.
  */
 
 /** One AbortController per in-flight assistant message, keyed by message id - not persisted, purely runtime. */
@@ -29,8 +29,6 @@ interface BackendChatMessage {
 interface SendMessageResponse {
   conversationId: string;
   message: BackendChatMessage;
-  provider: string;
-  fallbackNote?: string;
   actions: Array<{ tool: string; args: Record<string, unknown>; status: "executed" | "failed"; resultMessage: string }>;
 }
 
@@ -38,7 +36,7 @@ type StreamEvent =
   | { type: "token"; delta: string }
   | { type: "tool_call"; tool: string; args: Record<string, unknown> }
   | { type: "tool_result"; tool: string; success: boolean; message: string }
-  | { type: "done"; conversationId: string; provider: string; fallbackNote?: string }
+  | { type: "done"; conversationId: string }
   | { type: "error"; message: string };
 
 function lastActionFrom(actions: SendMessageResponse["actions"]): ChatAction | undefined {
@@ -76,9 +74,8 @@ async function runNonStreaming(
     );
     adoptBackendId(conversationId, response.conversationId);
 
-    const displayText = response.fallbackNote ? `${response.message.content}\n\n_(${response.fallbackNote})_` : response.message.content;
     updateMessage(conversationId, assistantMessageId, {
-      content: displayText,
+      content: response.message.content,
       status: "complete",
       action: lastActionFrom(response.actions),
     });
@@ -131,8 +128,7 @@ async function runStreaming(
         updateMessage(conversationId, assistantMessageId, { action: lastAction });
       } else if (event.type === "done") {
         adoptBackendId(conversationId, event.conversationId);
-        const finalText = event.fallbackNote ? `${streamed}\n\n_(${event.fallbackNote})_` : streamed;
-        updateMessage(conversationId, assistantMessageId, { content: finalText, status: "complete" });
+        updateMessage(conversationId, assistantMessageId, { content: streamed, status: "complete" });
       } else if (event.type === "error") {
         updateMessage(conversationId, assistantMessageId, { status: "error", errorMessage: event.message });
       }

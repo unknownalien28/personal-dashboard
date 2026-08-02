@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AiToolDefinition } from "../providers/ai-provider.interface";
+import { AiToolDefinition } from "../providers/gemini.types";
 import { AiTool, ToolExecutionResult } from "./tool.interface";
 import { CreateTaskTool } from "./create-task.tool";
 import { UpdateTaskTool } from "./update-task.tool";

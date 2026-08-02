@@ -11,14 +11,8 @@ import { SearchModule } from "../search/search.module";
 import { AiController } from "./ai.controller";
 import { AiService } from "./ai.service";
 import { AiOrchestratorService } from "./orchestrator.service";
-import { ProviderHealthService } from "./providers/provider-health.service";
 import { PromptManagerService } from "./prompt-manager.service";
-import { DemoAiProvider } from "./providers/demo.provider";
-import { OpenAiProvider } from "./providers/openai.provider";
-import { AnthropicProvider } from "./providers/anthropic.provider";
 import { GeminiProvider } from "./providers/gemini.provider";
-import { OllamaProvider } from "./providers/ollama.provider";
-import { AiProviderRegistry } from "./providers/registry";
 import { ToolRegistryService } from "./tools/tool-registry.service";
 import { CreateTaskTool } from "./tools/create-task.tool";
 import { UpdateTaskTool } from "./tools/update-task.tool";
@@ -53,15 +47,7 @@ import { ListNotificationsTool } from "./tools/list-notifications.tool";
     AiService,
     AiOrchestratorService,
     PromptManagerService,
-    ProviderHealthService,
-
-    // Providers
-    DemoAiProvider,
-    OpenAiProvider,
-    AnthropicProvider,
     GeminiProvider,
-    OllamaProvider,
-    AiProviderRegistry,
 
     // Tool calling
     CreateTaskTool,

@@ -16,15 +16,15 @@ import { SendMessageDto, sendMessageSchema } from "./dto/ai.schemas";
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
-  @Get("providers")
+  @Get("status")
   @ApiOperation({
-    summary: "List AI providers and their configuration status",
+    summary: "AI status",
     description:
-      "Returns every registered provider (demo, gemini, openai, anthropic, ollama) and whether each is actually usable right now (i.e. has an API key configured). The frontend uses this to populate Settings > AI without ever needing to know which one is actually selected under the hood.",
+      "Returns whether Gemini (AlienOS's only AI provider) is configured right now (i.e. has an API key set). The frontend uses this to show a clear message in Settings > AI if it isn't, rather than letting a chat attempt silently fail.",
   })
-  @ApiResponse({ status: 200, description: "List of providers with their configured status." })
-  listProviders() {
-    return { providers: this.aiService.listProviders() };
+  @ApiResponse({ status: 200, description: "Gemini's configuration status." })
+  getStatus() {
+    return this.aiService.getStatus();
   }
 
   @Get("tools")
@@ -42,10 +42,11 @@ export class AiController {
   @ApiOperation({
     summary: "Send a chat message to Alien",
     description:
-      "Persists the user's message, resolves the active AI provider (Gemini by default, falling back gracefully if unavailable), runs the tool-calling loop if the model requests any actions, persists the assistant's reply (and any tool actions taken) and returns the final message.",
+      "Persists the user's message, runs the tool-calling loop if Gemini requests any actions, persists the assistant's reply (and any tool actions taken) and returns the final message. Returns a clear error if Gemini isn't configured or the request fails - never silently substitutes a different response.",
   })
-  @ApiResponse({ status: 201, description: "The assistant's reply, including which provider actually answered." })
+  @ApiResponse({ status: 201, description: "The assistant's reply." })
   @ApiResponse({ status: 403, description: "AI is disabled in the user's AI Settings." })
+  @ApiResponse({ status: 503, description: "Gemini isn't configured, or the request to it failed." })
   sendMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(sendMessageSchema)) dto: SendMessageDto,
@@ -67,7 +68,7 @@ export class AiController {
   @ApiOperation({
     summary: "Send a chat message to Alien and stream the reply (Server-Sent Events)",
     description:
-      "Same behavior as POST /ai/messages, but streams the response as it's generated: 'token' events for partial text, 'tool_call'/'tool_result' events when Alien takes an action, and a final 'done' event once the reply is fully persisted. Disconnecting the client aborts the in-flight provider request." +
+      "Same behavior as POST /ai/messages, but streams the response as it's generated: 'token' events for partial text, 'tool_call'/'tool_result' events when Alien takes an action, and a final 'done' event once the reply is fully persisted. Disconnecting the client aborts the in-flight Gemini request." +
       " Deliberately POST (not the plain GET the @Sse decorator defaults to): the browser's native EventSource API can only send unauthenticated GET requests with no custom body, which doesn't work with our Bearer-token auth or JSON payload — see streamSse() in the frontend's src/lib/api/client.ts.",
   })
   @ApiResponse({ status: 200, description: "text/event-stream of { type, ... } events — see AiStreamEvent." })

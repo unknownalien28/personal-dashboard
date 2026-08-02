@@ -1,4 +1,4 @@
-import { JsonSchemaObject } from "../providers/ai-provider.interface";
+import { JsonSchemaObject } from "../providers/gemini.types";
 
 /**
  * A single action Alien can take inside AlienOS on the user's behalf.

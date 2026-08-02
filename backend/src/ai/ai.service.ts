@@ -5,7 +5,7 @@ import { SendMessageDto } from "./dto/ai.schemas";
 /**
  * Thin facade over AiOrchestratorService. Kept as its own injectable so
  * the controller's dependency surface doesn't change regardless of how
- * the orchestration internals evolve — all the actual provider-selection/
+ * the orchestration internals evolve — all the actual
  * context-injection/tool-calling/streaming logic lives in the
  * orchestrator (see orchestrator.service.ts).
  */
@@ -13,8 +13,8 @@ import { SendMessageDto } from "./dto/ai.schemas";
 export class AiService {
   constructor(private readonly orchestrator: AiOrchestratorService) {}
 
-  listProviders() {
-    return this.orchestrator.listProviders();
+  getStatus() {
+    return this.orchestrator.getStatus();
   }
 
   listTools() {

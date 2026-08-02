@@ -6,28 +6,30 @@ import {
   AiCompletionRequest,
   AiCompletionResult,
   AiMessage,
-  AiProvider,
   AiStreamChunk,
   AiTokenUsage,
   AiToolCall,
   AiToolDefinition,
-} from "./ai-provider.interface";
+} from "./gemini.types";
 import { retryWithBackoff, combineWithTimeout } from "./provider-http.util";
 
 /**
- * Production Google Gemini provider, backed by the official `@google/genai`
- * SDK. Reads its API key from `AI_GEMINI_API_KEY` at request time — nothing
- * is hardcoded or persisted. If the key is missing, every call fails with a
- * clear, descriptive error instead of throwing an SDK-level exception.
+ * AlienOS's single AI provider, backed by the official `@google/genai` SDK.
+ * Reads its API key from AI_GEMINI_API_KEY at request time - nothing is
+ * hardcoded or persisted. If the key is missing, every call fails with a
+ * clear, descriptive error (see isConfigured()/AiOrchestratorService,
+ * which turns that into a user-friendly message rather than a raw
+ * exception) - there is no fallback to another provider or a canned
+ * response; a genuine failure is reported as one.
  */
 @Injectable()
-export class GeminiProvider implements AiProvider {
-  readonly key = "gemini";
+export class GeminiProvider {
   private readonly logger = new Logger(GeminiProvider.name);
   private client: GoogleGenAI | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
+  /** Whether Gemini has everything it needs (an API key) to actually be called. */
   isConfigured(): boolean {
     return !!this.config.get<string>("ai.geminiApiKey");
   }

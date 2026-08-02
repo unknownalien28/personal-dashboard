@@ -68,7 +68,7 @@ describe("TransformInterceptor (regression: must not wrap SSE responses)", () =>
     const doneEvent = {
       type: "done",
       conversationId: "conv-1",
-      provider: "openai",
+      provider: "gemini",
       usage: { promptTokens: 5, completionTokens: 3, totalTokens: 8 },
     };
     const result = await firstValueFrom(

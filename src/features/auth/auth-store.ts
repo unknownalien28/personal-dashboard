@@ -31,7 +31,6 @@ interface BackendProfile {
 /** Nested AISettings sub-object as returned by GET /users/me — see backend AISettings model. */
 interface BackendAISettings {
   enabled: boolean;
-  provider: "auto" | "demo" | "openai" | "anthropic" | "gemini" | "ollama";
   model: string;
   streaming: boolean;
   temperature: number;
@@ -119,8 +118,7 @@ function syncProfileFromBackend(profile?: BackendProfile | null): void {
 
 /**
  * Seeds the local AI-settings cache (`useSettingsStore.ai`) from the
- * backend's AISettings — the backend is the source of truth for which AI
- * provider is active (Gemini/Auto/etc.), never the browser. Called once
+ * backend's AISettings — the backend is the source of truth. Called once
  * per login/register/hydrate, same pattern as syncProfileFromBackend.
  * Uses `{ sync: false }` so this doesn't immediately PATCH the value it
  * just received right back to the server.
@@ -130,7 +128,6 @@ function syncAISettingsFromBackend(aiSettings?: BackendAISettings | null): void 
   useSettingsStore.getState().updateAISettings(
     {
       enabled: aiSettings.enabled,
-      provider: aiSettings.provider,
       model: aiSettings.model,
       streaming: aiSettings.streaming,
       temperature: aiSettings.temperature,

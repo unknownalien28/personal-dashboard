@@ -39,7 +39,7 @@ function assertProductionSecretsAreConfigured(config: ConfigService): void {
 }
 
 /**
- * Every real AI provider (Gemini, OpenAI, Anthropic, Ollama) combines the
+ * The Gemini provider combines the caller's cancellation signal with a
  * caller's cancellation signal with a request timeout via `AbortSignal.any()`
  * (added in Node 20.3). `package.json`'s `engines` field documents this, but
  * `engines` alone only produces an installer *warning*, not a hard failure —
