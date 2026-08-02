@@ -4,6 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { WinstonModule } from "nest-winston";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { json, urlencoded } from "express";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
@@ -72,6 +73,16 @@ async function bootstrap() {
     origin: config.get<string>("cors.origin"),
     credentials: true,
   });
+
+  // Express's body-parser defaults to a 100KB JSON body limit if never
+  // configured. That's wildly inconsistent with storage.controller.ts's own
+  // MAX_UPLOAD_BYTES (15MB) for file uploads sent as base64 JSON - base64
+  // encoding inflates a file by ~33%, so ANY attachment over roughly 75KB of
+  // original size was being silently rejected by Express itself before our
+  // own 15MB check ever ran. Raised to comfortably cover a 15MB file's
+  // base64 form plus JSON/field overhead.
+  app.use(json({ limit: "21mb" }));
+  app.use(urlencoded({ extended: true, limit: "21mb" }));
 
   // --- API contract -----------------------------------------------------
   const apiPrefix = config.get<string>("app.apiPrefix") ?? "api";
