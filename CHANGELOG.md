@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-08-02 (later) — QA fixes: Stop-button/health-service miscounting, large upload rejection
+
+Two real bugs found via manual QA, both fixed and covered by new
+regression tests:
+
+1. **Stop button clicks were miscounted as provider failures.** Both
+   `sendMessage()` and `stream()` recorded a health-tracker failure for
+   *any* error, including a user-initiated cancellation. After 3
+   Stop-button clicks, a perfectly healthy provider got deprioritized for
+   30s, producing the observed unexpected fallback to the Demo provider.
+   Fixed by checking `signal?.aborted` before recording a failure.
+
+2. **Attachments over ~74KB were silently rejected.** Express's
+   undocumented 100KB default JSON body limit was never overridden,
+   wildly inconsistent with the app's own advertised 15MB attachment
+   limit (base64 inflates a file ~33%). Fixed by explicitly setting a
+   21MB body limit in `main.ts`. Also fixed `HttpExceptionFilter`, which
+   was forcing this (and any other non-Nest error) to a generic 500
+   instead of the real, more useful 413.
+
+Full details: `QA_REPORT_2026-08-02.md`.
+
+---
+
 ## 2026-08-02 — Fix: AI chat response never appeared (SSE double-wrapping)
 
 Root cause: the globally-registered `TransformInterceptor` wrapped every
